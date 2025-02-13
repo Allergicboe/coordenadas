@@ -3,27 +3,6 @@ import gspread
 from google.oauth2 import service_account
 import re
 
-# --- 1. Interfaz de Streamlit ---
-def main():
-    """Interfaz principal de Streamlit."""
-    st.title("Conversión de Coordenadas DMS a Decimal")
-
-    # Entrada de usuario para iniciar la conversión
-    st.write("""
-    Esta aplicación convierte coordenadas DMS (grados, minutos, segundos) a formato decimal.
-    Puedes subir las coordenadas DMS a tu hoja de Google Sheets, luego presiona el botón para actualizar las celdas con las coordenadas convertidas.
-    """)
-
-    # Mostrar el estado de conexión
-    if st.button('Conectar y Convertir Coordenadas'):
-        client = init_connection()
-        if client is None:
-            return
-        sheet = load_sheet(client)
-        if sheet is None:
-            return
-        procesar_coordenadas(sheet)
-
 # --- 2. Funciones de Conexión y Carga de Datos ---
 def init_connection():
     """Función para inicializar la conexión con Google Sheets."""
@@ -49,37 +28,16 @@ def load_sheet(client):
         st.error(f"Error al cargar la planilla: {str(e)}")
         return None
 
-# --- 3. Funciones para Formatear y Convertir las Coordenadas ---
-def formatear_dms(dms):
-    match = re.match(r"(\d{1,2})°\s*(\d{1,2})'\s*([\d.]+)\"\s*([NS])\s*(\d{1,3})°\s*(\d{1,2})'\s*([\d.]+)\"\s*([EW])", str(dms))
-    if not match:
-        return None
+# --- 3. Función para Convertir Decimal a DMS ---
+def decimal_a_dms(decimal, direccion):
+    grados = int(decimal)
+    minutos = int((decimal - grados) * 60)
+    segundos = round((((decimal - grados) * 60) - minutos) * 60, 1)
+    return f"{grados}° {minutos}' {segundos}\" {direccion}"
 
-    lat_g, lat_m, lat_s, lat_dir, lon_g, lon_m, lon_s, lon_dir = match.groups()
-
-    # Redondear segundos a un decimal
-    lat_s = round(float(lat_s), 1)
-    lon_s = round(float(lon_s), 1)
-
-    # Si al redondear, los segundos se vuelven 60.0, ajustar
-    if lat_s == 60.0:
-        lat_s = 0.0
-        lat_m = int(lat_m) + 1
-
-    if lon_s == 60.0:
-        lon_s = 0.0
-        lon_m = int(lon_m) + 1
-
-    # Asegurar formato de salida correcto
-    lat = f"{int(lat_g):02d}°{int(lat_m):02d}'{lat_s:04.1f}\"{lat_dir}"
-
-    # Corregir longitud para eliminar el cero adicional en los grados
-    lon = f"{int(lon_g)}°{int(lon_m):02d}'{lon_s:04.1f}\"{lon_dir}"
-
-    return lat, lon
-
+# --- 4. Función para Convertir DMS a Decimal ---
 def dms_a_decimal(dms):
-    match = re.match(r"(\d{1,3})°(\d{1,2})'([\d.]+)\"([NSWE])", str(dms))
+    match = re.match(r"(\d{1,3})°\s*(\d{1,2})'\s*([\d.]+)\"\s*([NSWE])", str(dms))
     if not match:
         return None
 
@@ -90,48 +48,45 @@ def dms_a_decimal(dms):
 
     return round(decimal, 8)
 
-# --- 4. Función para Procesar las Coordenadas ---
-def procesar_coordenadas(sheet):
-    """Función para procesar las coordenadas DMS y actualizar la planilla."""
-    # Obtener todos los datos
-    datos = sheet.get_all_values()
-    header = datos[0]
-    data = datos[1:]
+# --- 5. Interfaz de Usuario ---
+st.title("Conversión de Coordenadas: DMS a Decimal y Decimal a DMS")
 
-    # Obtener índices de las columnas necesarias
-    col_m = header.index("Ubicación sonda google maps")
-    col_n = header.index("Latitud sonda")
-    col_o = header.index("longitud Sonda")
+# --- 5.1. Sección DMS a Decimal ---
+st.subheader("De DMS a Decimal")
 
-    # Listas para almacenar los valores a actualizar
-    updates = []
+# Entrada de coordenadas DMS
+dms_input = st.text_input("Ingresa las coordenadas DMS (Ejemplo: 45° 30' 15\" N, 67° 10' 30\" W)")
 
-    # Procesar cada fila
-    for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
-        dms_sonda = fila[col_m].strip() if col_m < len(fila) else ""
+if st.button("Convertir DMS a Decimal"):
+    if dms_input:
+        # Separar las coordenadas
+        lat_dms = dms_input.split(',')[0].strip()
+        lon_dms = dms_input.split(',')[1].strip()
+        
+        lat_decimal = dms_a_decimal(lat_dms)
+        lon_decimal = dms_a_decimal(lon_dms)
 
-        # Ignorar valores vacíos o inválidos
-        if not dms_sonda or not re.search(r"\d+°\s*\d+'", dms_sonda):
-            continue
-
-        # Formatear coordenadas y convertirlas a decimal
-        coordenadas = formatear_dms(dms_sonda)
-        if coordenadas:
-            lat_decimal = dms_a_decimal(coordenadas[0])
-            lon_decimal = dms_a_decimal(coordenadas[1])
+        if lat_decimal and lon_decimal:
+            st.write(f"Latitud en Decimal: {lat_decimal}")
+            st.write(f"Longitud en Decimal: {lon_decimal}")
         else:
-            lat_decimal = lon_decimal = ""
+            st.error("Formato DMS no válido, intenta de nuevo.")
+    else:
+        st.error("Por favor ingresa las coordenadas DMS.")
 
-        # Agregar las actualizaciones a la lista
-        updates.append({"range": f"M{i}", "values": [[f"{coordenadas[0]} {coordenadas[1]}"]]})  # Ubicación formateada
-        updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
-        updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+# --- 5.2. Sección Decimal a DMS ---
+st.subheader("De Decimal a DMS")
 
-    # Aplicar batch update
-    if updates:
-        sheet.batch_update(updates)
+# Entrada de coordenadas en formato decimal
+lat_decimal_input = st.number_input("Ingresa la latitud en formato decimal", format="%.8f")
+lon_decimal_input = st.number_input("Ingresa la longitud en formato decimal", format="%.8f")
 
-    st.success("✅ Conversión completada y planilla actualizada.")
-
-if __name__ == "__main__":
-    main()
+if st.button("Convertir Decimal a DMS"):
+    if lat_decimal_input and lon_decimal_input:
+        lat_dms = decimal_a_dms(lat_decimal_input, "N" if lat_decimal_input >= 0 else "S")
+        lon_dms = decimal_a_dms(lon_decimal_input, "E" if lon_decimal_input >= 0 else "W")
+        
+        st.write(f"Latitud en DMS: {lat_dms}")
+        st.write(f"Longitud en DMS: {lon_dms}")
+    else:
+        st.error("Por favor ingresa las coordenadas en formato decimal.")
