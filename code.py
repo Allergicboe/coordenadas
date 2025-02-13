@@ -47,8 +47,8 @@ def decimal_a_dms(decimal, direccion):
     minutos = int((abs(decimal) - grados) * 60)
     segundos = (abs(decimal) - grados - minutos / 60) * 3600
 
-    # Formatear a DMS sin espacios
-    dms = f"{grados:02d}°{minutos:02d}'{segundos:0.1f}\"{direccion}"
+    # Formatear a DMS sin espacios, asegurando dos dígitos para minutos y segundos
+    dms = f"{grados:02d}°{minutos:02d}'{segundos:05.1f}\"{direccion}"
     return dms
 
 # Función para procesar la hoja y realizar la conversión
