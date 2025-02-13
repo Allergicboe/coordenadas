@@ -47,7 +47,7 @@ def format_dms(value):
 # --- 2. Función para actualizar formato y coordenadas en Google Sheets ---
 def update_coordinates(sheet):
     try:
-        # Actualiza el formato de las columnas M, N y O
+        # Actualiza el formato de las columnas M, N y O (excepto la fila 1)
         cell_format = {
             "backgroundColor": {"red": 1, "green": 1, "blue": 1},  # Fondo blanco (sin relleno)
             "horizontalAlignment": "CENTER",
@@ -57,8 +57,8 @@ def update_coordinates(sheet):
                 "fontSize": 11
             }
         }
-        # Aplica el formato a todas las columnas M, N y O
-        sheet.format("M:O", cell_format)
+        # Aplica el formato a todas las filas de M, N, O, excepto la fila 1
+        sheet.format("M2:O", cell_format)
 
         # Lee la columna M (número 13) y actualiza sus valores con el formato DMS deseado
         coordinates = sheet.col_values(13)
