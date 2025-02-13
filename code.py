@@ -87,14 +87,16 @@ if sheet:
             dms_sonda = fila[col_m].strip() if col_m < len(fila) else ""
 
             if dms_sonda:
-                # Convertir DMS a decimal
-                lat_decimal = dms_a_decimal(dms_sonda.split(" ")[0])
-                lon_decimal = dms_a_decimal(dms_sonda.split(" ")[1])
+                # Verificar que la cadena tenga el formato esperado
+                dms_parts = dms_sonda.split(" ")
+                if len(dms_parts) == 2:
+                    lat_decimal = dms_a_decimal(dms_parts[0])
+                    lon_decimal = dms_a_decimal(dms_parts[1])
 
-                # Verificar si se obtuvo un valor válido para la latitud y longitud
-                if lat_decimal is not None and lon_decimal is not None:
-                    updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
-                    updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+                    # Verificar si se obtuvo un valor válido para la latitud y longitud
+                    if lat_decimal is not None and lon_decimal is not None:
+                        updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
+                        updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
 
         # Aplicar batch update
         if updates:
