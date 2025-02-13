@@ -32,7 +32,7 @@ def load_sheet(client):
 # --- 3. Funciones de conversión DMS a Decimal y viceversa ---
 def dms_a_decimal(dms):
     """Convierte coordenadas DMS a formato decimal."""
-    match = re.match(r"(\d{1,3})°\s*(\d{1,2})'\s*([\d.]+)\"\s*([NSWE])", str(dms))
+    match = re.match(r"(\d{1,3})°(\d{1,2})'([\d.]+)\"([NSWE])", str(dms))
     if not match:
         return None
 
@@ -62,47 +62,7 @@ sheet = load_sheet(client)
 if not sheet:
     st.stop()
 
-# Opciones de conversión
-conversion_opcion = st.selectbox("Selecciona el tipo de conversión", ["De DMS a Decimal", "De Decimal a DMS"])
-
-if conversion_opcion == "De DMS a Decimal":
-    st.header("Conversión de DMS a Decimal")
-    
-    # Inputs para las coordenadas DMS
-    dms_lat = st.text_input("Latitud (DMS):")
-    dms_lon = st.text_input("Longitud (DMS):")
-    
-    # Botón para realizar la conversión
-    if st.button("Convertir a Decimal"):
-        if dms_lat and dms_lon:
-            lat_decimal = dms_a_decimal(dms_lat)
-            lon_decimal = dms_a_decimal(dms_lon)
-            
-            if lat_decimal and lon_decimal:
-                st.success(f"Latitud: {lat_decimal}, Longitud: {lon_decimal}")
-            else:
-                st.error("Error en el formato de las coordenadas DMS")
-        else:
-            st.error("Por favor, ingrese ambas coordenadas DMS.")
-
-elif conversion_opcion == "De Decimal a DMS":
-    st.header("Conversión de Decimal a DMS")
-    
-    # Inputs para las coordenadas decimales
-    decimal_lat = st.number_input("Latitud (Decimal):", format="%.8f")
-    decimal_lon = st.number_input("Longitud (Decimal):", format="%.8f")
-    
-    # Botón para realizar la conversión
-    if st.button("Convertir a DMS"):
-        if decimal_lat and decimal_lon:
-            lat_dms = decimal_a_dms(decimal_lat, 'S' if decimal_lat < 0 else 'N')
-            lon_dms = decimal_a_dms(decimal_lon, 'W' if decimal_lon < 0 else 'E')
-            
-            st.success(f"Latitud: {lat_dms}, Longitud: {lon_dms}")
-        else:
-            st.error("Por favor, ingrese ambas coordenadas decimales.")
-
-# --- 5. Función para actualizar los valores en Google Sheets ---
+# Función para actualizar las coordenadas en Google Sheets
 def actualizar_coordenadas():
     """Función para actualizar coordenadas en Google Sheets."""
     try:
@@ -143,6 +103,14 @@ def actualizar_coordenadas():
     except Exception as e:
         st.error(f"Error al actualizar la hoja: {str(e)}")
 
-# Botón para actualizar las coordenadas
-if st.button("Actualizar Coordenadas en Google Sheets"):
-    actualizar_coordenadas()
+# Botones para realizar las conversiones
+st.header("Operaciones de Conversión")
+col1, col2 = st.columns(2)
+
+with col1:
+    if st.button("Convertir DMS a Decimal"):
+        actualizar_coordenadas()
+
+with col2:
+    if st.button("Convertir Decimal a DMS"):
+        actualizar_coordenadas()
