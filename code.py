@@ -26,7 +26,7 @@ def load_sheet(client):
         return None
 
 # --- 2. Funciones para aplicar formato a las celdas ---
-def apply_format(sheet, col_start, col_end):
+def apply_format(sheet):
     """Aplica formato a las celdas de la hoja de cálculo."""
     text_format = {
         "backgroundColor": {"red": 1, "green": 1, "blue": 1},
@@ -50,10 +50,10 @@ def apply_format(sheet, col_start, col_end):
             "fontSize": 11
         }
     }
-    # Aplica formato a la columna de DMS (texto)
-    sheet.format(f"{col_start}2:{col_end}", text_format)
-    # Aplica formato a las columnas de Latitud y Longitud (números)
-    sheet.format(f"{col_start+1}2:{col_end+1}", number_format)
+    # Aplica formato a la columna M (texto, DMS)
+    sheet.format("M2:M", text_format)
+    # Aplica formato a las columnas N y O (números)
+    sheet.format("N2:O", number_format)
 
 # --- 3. Función para formatear la cadena DMS ---
 def format_dms(value):
@@ -76,15 +76,15 @@ def format_dms(value):
         return f"{formatted_lat} {formatted_lon}"
     return None
 
-# --- 4. Actualizar el contenido de la columna DMS ---
-def update_dms_format_column(sheet, col_start, col_end):
+# --- 4. Función para actualizar la columna DMS ---
+def update_dms_format_column(sheet, column):
     """Actualiza la columna DMS en la hoja de cálculo."""
-    dms_values = sheet.col_values(col_start)  # Columna M o E
+    dms_values = sheet.col_values(column)  # Columna seleccionada
     if len(dms_values) <= 1:
         return
     start_row = 2
     end_row = len(dms_values)
-    cell_range = f"{col_start}{start_row}:{col_end}{end_row}"
+    cell_range = f"M{start_row}:M{end_row}"
     cells = sheet.range(cell_range)
     for i, cell in enumerate(cells):
         original_value = dms_values[i + 1]  # omite el encabezado
@@ -126,18 +126,18 @@ def decimal_to_dms(lat, lon):
     return f"{dms_lat} {dms_lon}"
 
 # --- 6. Funciones que actualizan la hoja de cálculo ---
-def update_decimal_from_dms(sheet, col_start, col_end):
+def update_decimal_from_dms(sheet, column):
     """Convierte DMS a decimal y actualiza las columnas correspondientes."""
     try:
-        apply_format(sheet, col_start, col_end)
-        update_dms_format_column(sheet, col_start, col_end)
-        dms_values = sheet.col_values(col_start)  # Columna M o E
+        apply_format(sheet)
+        update_dms_format_column(sheet, column)
+        dms_values = sheet.col_values(column)  # Columna seleccionada
         if len(dms_values) <= 1:
-            st.warning("No se encontraron datos en 'Ubicación Campo' o 'Ubicación Sonda'.")
+            st.warning("No se encontraron datos en 'Ubicación sonda google maps'.")
             return
         num_rows = len(dms_values)
-        lat_cells = sheet.range(f"{col_start+1}2:{col_start+1}{num_rows}")
-        lon_cells = sheet.range(f"{col_start+2}2:{col_start+2}{num_rows}")
+        lat_cells = sheet.range(f"N2:N{num_rows}")
+        lon_cells = sheet.range(f"O2:O{num_rows}")
         for i, dms in enumerate(dms_values[1:]):  # omitir encabezado
             if dms:
                 result = dms_to_decimal(dms)
@@ -151,18 +151,17 @@ def update_decimal_from_dms(sheet, col_start, col_end):
     except Exception as e:
         st.error(f"Error en la conversión de DMS a decimal: {str(e)}")
 
-def update_dms_from_decimal(sheet, col_start, col_end):
+def update_dms_from_decimal(sheet, column_lat, column_lon):
     """Convierte decimal a DMS y actualiza la columna correspondiente."""
     try:
-        apply_format(sheet, col_start, col_end)
-        update_dms_format_column(sheet, col_start, col_end)
-        lat_values = sheet.col_values(col_start+1)  # Columna F
-        lon_values = sheet.col_values(col_start+2)  # Columna G
+        apply_format(sheet)
+        lat_values = sheet.col_values(column_lat)  # Columna N
+        lon_values = sheet.col_values(column_lon)  # Columna O
         if len(lat_values) <= 1 or len(lon_values) <= 1:
-            st.warning("No se encontraron datos en 'Latitud campo' o 'Longitud campo'.")
+            st.warning("No se encontraron datos en 'Latitud' o 'longitud'.")
             return
         num_rows = min(len(lat_values), len(lon_values))
-        dms_cells = sheet.range(f"{col_start}2:{col_start}{num_rows}")
+        dms_cells = sheet.range(f"M2:M{num_rows}")
         for i in range(1, num_rows):
             lat_str = lat_values[i]
             lon_str = lon_values[i]
@@ -181,48 +180,34 @@ def update_dms_from_decimal(sheet, col_start, col_end):
 
 # --- 7. Interfaz de usuario en Streamlit ---
 def main():
-    st.title("Conversión de Coordenadas 🌍")
-
-    # Sección de Sondas
-    st.subheader("Conversión de Coordenadas: Sondas📍")
+    st.title("Conversión de Coordenadas: Sondas y Campos📍")
     st.write("Selecciona la conversión que deseas realizar:")
+
+    client = init_connection()
+    if not client:
+        return
+    sheet = load_sheet(client)
+    if not sheet:
+        return
+
+    # Usar columnas para botones
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Convertir DMS a Decimal (Sondas)", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal_sonda", use_container_width=True):
-            client = init_connection()
-            if client:
-                sheet = load_sheet(client)
-                if sheet:
-                    update_decimal_from_dms(sheet, 13, 15)
-    with col2:
-        if st.button("Convertir Decimal a DMS (Sondas)", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms_sonda", use_container_width=True):
-            client = init_connection()
-            if client:
-                sheet = load_sheet(client)
-                if sheet:
-                    update_dms_from_decimal(sheet, 13, 15)
+        st.subheader("Conversión para Sondas")
+        if st.button("Convertir DMS a Decimal (Sondas)", key="dms_to_decimal_sonda"):
+            update_decimal_from_dms(sheet, 13)  # Columna M para Sondas
+        if st.button("Convertir Decimal a DMS (Sondas)", key="decimal_to_dms_sonda"):
+            update_dms_from_decimal(sheet, 14, 15)  # Columnas N y O para Sondas
 
-    # Separador entre secciones
+    with col2:
+        st.subheader("Conversión para Campos")
+        if st.button("Convertir DMS a Decimal (Campos)", key="dms_to_decimal_campo"):
+            update_decimal_from_dms(sheet, 5)  # Columna E para Campos
+        if st.button("Convertir Decimal a DMS (Campos)", key="decimal_to_dms_campo"):
+            update_dms_from_decimal(sheet, 6, 7)  # Columnas F y G para Campos
+
+    # Separador entre botones
     st.markdown("---")
-
-    # Sección de Campos
-    st.subheader("Conversión de Coordenadas: Campos📍")
-    st.write("Selecciona la conversión que deseas realizar:")
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Convertir DMS a Decimal (Campos)", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal_campo", use_container_width=True):
-            client = init_connection()
-            if client:
-                sheet = load_sheet(client)
-                if sheet:
-                    update_decimal_from_dms(sheet, 5, 7)
-    with col2:
-        if st.button("Convertir Decimal a DMS (Campos)", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms_campo", use_container_width=True):
-            client = init_connection()
-            if client:
-                sheet = load_sheet(client)
-                if sheet:
-                    update_dms_from_decimal(sheet, 5, 7)
 
 if __name__ == "__main__":
     main()
