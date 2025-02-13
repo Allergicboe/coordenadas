@@ -60,12 +60,6 @@ def apply_format(sheet):
 
 # --- 3. Función para formatear la cadena DMS ---
 def format_dms(value):
-    """
-    Toma una cadena con coordenadas y la formatea al siguiente formato:
-    34°04'50.1"S 70°39'15.1"W
-    Se espera que la entrada contenga (con o sin espacios) los componentes:
-      grados, minutos, segundos (con 1 decimal) y la dirección.
-    """
     pattern = r'(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([NS])\s+(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([EW])'
     m = re.match(pattern, value.strip())
     if m:
@@ -84,99 +78,24 @@ def format_dms(value):
         return f"{formatted_lat} {formatted_lon}"
     return None
 
-# --- 4. Actualizar el contenido de la columna DMS ---
-def update_dms_format_column(sheet):
-    """
-    Actualiza (estandariza) el contenido de la columna "Ubicación sonda google maps" (M)
-    usando la función format_dms, sin modificar el encabezado.
-    Si la conversión falla, se deja el valor original.
-    """
-    dms_values = sheet.col_values(13)  # Columna M
-    if len(dms_values) <= 1:
-        return
-    start_row = 2
-    end_row = len(dms_values)
-    cell_range = f"M{start_row}:M{end_row}"
-    cells = sheet.range(cell_range)
-    for i, cell in enumerate(cells):
-        original_value = dms_values[i + 1]  # omite el encabezado
-        if original_value:
-            new_val = format_dms(original_value)
-            cell.value = new_val if new_val is not None else original_value
-    sheet.update_cells(cells)
-
-# --- 5. Funciones de conversión ---
-
-def dms_to_decimal(dms_str):
-    """
-    Convierte una cadena DMS en el formato:
-      34°04'50.1"S 70°39'15.1"W
-    a un par de números decimales (latitud, longitud).
-    """
-    pattern = r'(\d{2})[°º](\d{2})[\'’](\d{1,2}\.\d)"([NS])\s+(\d{2})[°º](\d{2})[\'’](\d{1,2}\.\d)"([EW])'
-    m = re.match(pattern, dms_str.strip())
-    if m:
-        lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m.groups()
-        lat = int(lat_deg) + int(lat_min) / 60 + float(lat_sec) / 3600
-        lon = int(lon_deg) + int(lon_min) / 60 + float(lon_sec) / 3600
-        if lat_dir.upper() == "S":
-            lat = -lat
-        if lon_dir.upper() == "W":
-            lon = -lon
-        return lat, lon
-    return None
-
-def decimal_to_dms(lat, lon):
-    """
-    Convierte dos números decimales (latitud y longitud) en una cadena DMS en el formato:
-      34°04'50.1"S 70°39'15.1"W
-    """
-    # Latitud
-    lat_dir = "N" if lat >= 0 else "S"
-    abs_lat = abs(lat)
-    lat_deg = int(abs_lat)
-    lat_min = int((abs_lat - lat_deg) * 60)
-    lat_sec = (abs_lat - lat_deg - lat_min / 60) * 3600
-    # Longitud
-    lon_dir = "E" if lon >= 0 else "W"
-    abs_lon = abs(lon)
-    lon_deg = int(abs_lon)
-    lon_min = int((abs_lon - lon_deg) * 60)
-    lon_sec = (abs_lon - lon_deg - lon_min / 60) * 3600
-
-    dms_lat = f"{lat_deg:02d}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir}"
-    dms_lon = f"{lon_deg:02d}°{lon_min:02d}'{lon_sec:04.1f}\"{lon_dir}"
-    return f"{dms_lat} {dms_lon}"
-
-# --- 6. Funciones que actualizan la hoja de cálculo ---
+# --- 4. Funciones que actualizan la hoja de cálculo ---
 
 def update_decimal_from_dms(sheet):
-    """
-    Antes de convertir, actualiza el formato de la columna DMS.
-    Luego, lee la columna "Ubicación sonda google maps" (M) en formato DMS,
-    la convierte a decimal y actualiza "Latitud sonda" (N) y "longitud Sonda" (O).
-    Los decimales se almacenan como número con 8 dígitos de precisión.
-    Si la conversión no es válida, se ignora esa celda y se deja su valor original.
-    """
     try:
         apply_format(sheet)
-        update_dms_format_column(sheet)
         dms_values = sheet.col_values(13)  # Columna M
         if len(dms_values) <= 1:
             st.warning("No se encontraron datos en 'Ubicación sonda google maps'.")
             return
-        num_rows = len(dms_values)
-        lat_cells = sheet.range(f"N2:N{num_rows}")
-        lon_cells = sheet.range(f"O2:O{num_rows}")
+        lat_cells = sheet.range(f"N2:N{len(dms_values)}")
+        lon_cells = sheet.range(f"O2:O{len(dms_values)}")
         for i, dms in enumerate(dms_values[1:]):  # omitir encabezado
             if dms:
                 result = dms_to_decimal(dms)
                 if result is not None:
                     lat, lon = result
-                    # Se asigna el valor numérico redondeado a 8 decimales
                     lat_cells[i].value = round(lat, 8)
                     lon_cells[i].value = round(lon, 8)
-                # Si la conversión falla, se ignora y se deja el valor actual
         sheet.update_cells(lat_cells)
         sheet.update_cells(lon_cells)
         st.success("Conversión de DMS a decimal completada.")
@@ -184,33 +103,20 @@ def update_decimal_from_dms(sheet):
         st.error(f"Error en la conversión de DMS a decimal: {str(e)}")
 
 def update_dms_from_decimal(sheet):
-    """
-    Antes de convertir, actualiza el formato de la columna DMS.
-    Luego, lee las columnas "Latitud sonda" (N) y "longitud Sonda" (O) en formato decimal,
-    las convierte a DMS y actualiza la columna "Ubicación sonda google maps" (M).
-    Si la conversión no es válida, se ignora esa celda.
-    """
     try:
         apply_format(sheet)
-        update_dms_format_column(sheet)
         lat_values = sheet.col_values(14)  # Columna N
         lon_values = sheet.col_values(15)  # Columna O
         if len(lat_values) <= 1 or len(lon_values) <= 1:
             st.warning("No se encontraron datos en 'Latitud sonda' o 'longitud Sonda'.")
             return
-        num_rows = min(len(lat_values), len(lon_values))
-        dms_cells = sheet.range(f"M2:M{num_rows}")
-        for i in range(1, num_rows):
-            lat_str = lat_values[i]
-            lon_str = lon_values[i]
-            if lat_str and lon_str:
-                try:
-                    lat = float(lat_str.replace(",", "."))
-                    lon = float(lon_str.replace(",", "."))
-                    dms = decimal_to_dms(lat, lon)
-                    dms_cells[i-1].value = dms
-                except Exception:
-                    pass  # Se ignora la celda si la conversión falla
+        dms_cells = sheet.range(f"M2:M{len(lat_values)}")
+        for i in range(1, len(lat_values)):
+            lat = lat_values[i]
+            lon = lon_values[i]
+            if lat and lon:
+                dms = decimal_to_dms(float(lat), float(lon))
+                dms_cells[i-1].value = dms
         sheet.update_cells(dms_cells)
         st.success("Conversión de decimal a DMS completada.")
     except Exception as e:
@@ -218,10 +124,11 @@ def update_dms_from_decimal(sheet):
 
 # --- 7. Interfaz de usuario en Streamlit ---
 def main():
-    st.title("Conversión de Coordenadas")
-    st.write("Utiliza los botones para convertir:")
-    st.write("1. DMS a Decimal (actualiza 'Latitud sonda' y 'longitud Sonda')")
-    st.write("2. Decimal a DMS (actualiza 'Ubicación sonda google maps')")
+    st.set_page_config(page_title="Conversión de Coordenadas", page_icon="🌍", layout="wide")
+    st.markdown("<h1 style='text-align: center; color: #0b5394;'>Conversión de Coordenadas</h1>", unsafe_allow_html=True)
+    st.markdown("""
+        <p style='text-align: center; font-size: 18px;'>Utiliza los botones para convertir las coordenadas entre DMS y Decimal:</p>
+    """, unsafe_allow_html=True)
     
     client = init_connection()
     if not client:
@@ -229,14 +136,17 @@ def main():
     sheet = load_sheet(client)
     if not sheet:
         return
-
+    
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Convertir DMS a Decimal"):
+        if st.button("Convertir DMS a Decimal", use_container_width=True, key="dms_to_decimal"):
             update_decimal_from_dms(sheet)
     with col2:
-        if st.button("Convertir Decimal a DMS"):
+        if st.button("Convertir Decimal a DMS", use_container_width=True, key="decimal_to_dms"):
             update_dms_from_decimal(sheet)
-
+    
+    st.markdown("<hr>", unsafe_allow_html=True)
+    st.write("Nota: Los cambios se aplicarán en las columnas correspondientes de la hoja de cálculo.")
+    
 if __name__ == "__main__":
     main()
