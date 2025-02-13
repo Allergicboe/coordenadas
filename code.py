@@ -47,10 +47,13 @@ def decimal_a_dms(decimal, direccion):
     minutos = int((abs(decimal) - grados) * 60)
     segundos = (abs(decimal) - grados - minutos / 60) * 3600
 
-    # Formatear a DMS sin espacios, asegurando dos dígitos para minutos y segundos
+    # Redondear segundos a un solo decimal
+    segundos = round(segundos, 1)
+
+    # Formatear a DMS sin espacios, asegurando dos dígitos para minutos y un decimal para segundos
     dms = f"{grados:02d}°{minutos:02d}'{segundos:05.1f}\"{direccion}"
     return dms
-
+    
 # Función para procesar la hoja y realizar la conversión
 def procesar_hoja(sheet, conversion):
     datos = sheet.get_all_values()
