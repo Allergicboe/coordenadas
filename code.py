@@ -35,7 +35,7 @@ def dms_a_decimal(dms):
         return None
 
     grados, minutos, segundos, _, direccion = match.groups()
-    decimal = float(grados) + float(minutos) / 60 + float(segundos) / 3600
+    decimal = float(grados) + float(minutos) / 60 + round(float(segundos), 1) / 3600  # Redondeamos los segundos a 1 decimal
     if direccion in ['S', 'W']:
         decimal = -decimal
 
@@ -54,30 +54,15 @@ def decimal_a_dms(decimal, direccion):
     dms = f"{grados:02d}°{int(minutos):02d}'{segundos:04.1f}\"{direccion}"
     return dms
 
-# Función para aplicar formato a todas las celdas de una columna
-def aplicar_formato(sheet, columna):
-    """Aplicar formato de fuente Arial 11, color negro, sin relleno y centrado a toda la columna."""
-    formato = {
-        "textFormat": {
-            "fontFamily": "Arial",
-            "fontSize": 11,
-            "foregroundColor": {
-                "red": 0,
-                "green": 0,
-                "blue": 0
-            }
-        },
-        "backgroundColor": {
-            "red": 1,
-            "green": 1,
-            "blue": 1
-        },
+# Función para formatear las celdas con el estilo deseado
+def formatear_estilo(sheet, col_idx):
+    """Aplica formato a la columna en el índice `col_idx`"""
+    sheet.format(f'{col_idx}2:{col_idx}', {
         "horizontalAlignment": "CENTER",
-        "verticalAlignment": "MIDDLE"
-    }
-    
-    # Aplicar formato a la columna completa (ajustamos la selección de celdas)
-    sheet.format(f"{columna}2:{columna}", formato)
+        "textFormat": {"fontSize": 11, "fontFamily": "Arial", "bold": False},
+        "backgroundColor": {"red": 1, "green": 1, "blue": 1},  # Sin relleno
+        "textColor": {"red": 0, "green": 0, "blue": 0}  # Negro
+    })
 
 # Función para procesar la hoja y realizar la conversión
 def procesar_hoja(sheet, conversion):
@@ -89,55 +74,88 @@ def procesar_hoja(sheet, conversion):
     col_m = header.index("Ubicación sonda google maps")
     col_n = header.index("Latitud sonda")
     col_o = header.index("longitud Sonda")
+    col_m_campo = header.index("Ubicación Campo")
+    col_n_campo = header.index("Latitud campo")
+    col_o_campo = header.index("Longitud Campo")
 
     # Listas para almacenar los valores a actualizar
     updates = []
 
-    # Aplicar formato a todas las celdas de las columnas M, N y O
-    aplicar_formato(sheet, "M")  # Columna M (Ubicación sonda google maps)
-    aplicar_formato(sheet, "N")  # Columna N (Latitud sonda)
-    aplicar_formato(sheet, "O")  # Columna O (Longitud sonda)
-
     # Procesar cada fila
     for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
         dms_sonda = fila[col_m].strip() if col_m < len(fila) else ""
-        lat_decimal = fila[col_n].strip() if col_n < len(fila) else ""
-        lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
+        lat_decimal_sonda = fila[col_n].strip() if col_n < len(fila) else ""
+        lon_decimal_sonda = fila[col_o].strip() if col_o < len(fila) else ""
+
+        dms_campo = fila[col_m_campo].strip() if col_m_campo < len(fila) else ""
+        lat_decimal_campo = fila[col_n_campo].strip() if col_n_campo < len(fila) else ""
+        lon_decimal_campo = fila[col_o_campo].strip() if col_o_campo < len(fila) else ""
 
         # Validación para evitar convertir valores no numéricos o vacíos
         try:
-            if lat_decimal:
-                lat_decimal = float(lat_decimal.replace(",", "."))
+            if lat_decimal_sonda:
+                lat_decimal_sonda = float(lat_decimal_sonda.replace(",", "."))
             else:
-                lat_decimal = None
+                lat_decimal_sonda = None
 
-            if lon_decimal:
-                lon_decimal = float(lon_decimal.replace(",", "."))
+            if lon_decimal_sonda:
+                lon_decimal_sonda = float(lon_decimal_sonda.replace(",", "."))
             else:
-                lon_decimal = None
+                lon_decimal_sonda = None
+
+            if lat_decimal_campo:
+                lat_decimal_campo = float(lat_decimal_campo.replace(",", "."))
+            else:
+                lat_decimal_campo = None
+
+            if lon_decimal_campo:
+                lon_decimal_campo = float(lon_decimal_campo.replace(",", "."))
+            else:
+                lon_decimal_campo = None
+
         except ValueError:
-            lat_decimal = None
-            lon_decimal = None
+            lat_decimal_sonda = None
+            lon_decimal_sonda = None
+            lat_decimal_campo = None
+            lon_decimal_campo = None
 
-        # Si la conversión es de DMS a Decimal
+        # Si la conversión es de DMS a Decimal para Sonda
         if conversion == "DMS a Decimal":
             if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
-                lat_decimal = dms_a_decimal(dms_sonda)
-                lon_decimal = lat_decimal  # Ya que tenemos un solo valor decimal por DMS
+                lat_decimal_sonda = dms_a_decimal(dms_sonda)
+                lon_decimal_sonda = lat_decimal_sonda  # Ya que tenemos un solo valor decimal por DMS
 
             # Agregar las actualizaciones a la lista
-            updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
-            updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+            updates.append({"range": f"N{i}", "values": [[lat_decimal_sonda]]})  # Latitud decimal
+            updates.append({"range": f"O{i}", "values": [[lon_decimal_sonda]]})  # Longitud decimal
 
-        # Si la conversión es de Decimal a DMS
+            # Si la conversión es de DMS a Decimal para Campo
+            if dms_campo and re.search(r"\d+°\s*\d+'", dms_campo):
+                lat_decimal_campo = dms_a_decimal(dms_campo)
+                lon_decimal_campo = lat_decimal_campo  # Ya que tenemos un solo valor decimal por DMS
+
+            # Agregar las actualizaciones a la lista
+            updates.append({"range": f"Latitud campo{i}", "values": [[lat_decimal_campo]]})  # Latitud decimal
+            updates.append({"range": f"Longitud Campo{i}", "values": [[lon_decimal_campo]]})  # Longitud decimal
+
+        # Si la conversión es de Decimal a DMS para Sonda
         elif conversion == "Decimal a DMS":
-            if lat_decimal is not None and lon_decimal is not None:
-                lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
-                lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
-                dms_sonda = f"{lat_dms} {lon_dms}"
+            if lat_decimal_sonda is not None and lon_decimal_sonda is not None:
+                lat_dms_sonda = decimal_a_dms(lat_decimal_sonda, "S" if lat_decimal_sonda < 0 else "N")
+                lon_dms_sonda = decimal_a_dms(lon_decimal_sonda, "W" if lon_decimal_sonda < 0 else "E")
+                dms_sonda = f"{lat_dms_sonda} {lon_dms_sonda}"
 
                 # Agregar las actualizaciones a la lista para reemplazar los valores en DMS
                 updates.append({"range": f"M{i}", "values": [[dms_sonda]]})  # Ubicación formateada
+
+            # Si la conversión es de Decimal a DMS para Campo
+            if lat_decimal_campo is not None and lon_decimal_campo is not None:
+                lat_dms_campo = decimal_a_dms(lat_decimal_campo, "S" if lat_decimal_campo < 0 else "N")
+                lon_dms_campo = decimal_a_dms(lon_decimal_campo, "W" if lon_decimal_campo < 0 else "E")
+                dms_campo = f"{lat_dms_campo} {lon_dms_campo}"
+
+                # Agregar las actualizaciones a la lista para reemplazar los valores en DMS
+                updates.append({"range": f"M{i}", "values": [[dms_campo]]})  # Ubicación formateada
 
     # Aplicar batch update
     if updates:
