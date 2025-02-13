@@ -1,7 +1,7 @@
+import re
 import streamlit as st
 import gspread
 from google.oauth2 import service_account
-import re
 
 # --- 2. Funciones de Conexión y Carga de Datos ---
 def init_connection():
@@ -30,12 +30,17 @@ def load_sheet(client):
 
 # Función para convertir DMS a decimal
 def dms_a_decimal(dms):
-    match = re.match(r"(\d{1,3})°(\d{1,2})'([\d.]+)\"([NSWE])", str(dms))
+    # Expresión regular para manejar el formato de DMS con posibles espacios entre grados, minutos y segundos
+    match = re.match(r"(\d{1,3})°\s*(\d{1,2})'\s*(\d+(\.\d+)?)\"\s*([NSWE])", str(dms))
     if not match:
         return None
 
-    grados, minutos, segundos, direccion = match.groups()
-    decimal = float(grados) + float(minutos) / 60 + float(segundos) / 3600
+    grados, minutos, segundos, _, direccion = match.groups()
+    grados = int(grados)
+    minutos = int(minutos)
+    segundos = float(segundos)
+
+    decimal = grados + minutos / 60 + segundos / 3600
     if direccion in ['S', 'W']:
         decimal = -decimal
 
@@ -116,20 +121,12 @@ def procesar_hoja(sheet, conversion):
     else:
         st.warning("⚠️ No se encontraron datos válidos para actualizar.")
 
-# --- Interfaz de Streamlit --- 
+# --- Interfaz de Streamlit ---
 st.title('Conversión de Coordenadas')
-st.markdown("""
-**Selecciona el tipo de conversión y realiza la acción:**
+st.sidebar.header('Opciones')
 
-- **DMS a Decimal:** Convierte coordenadas DMS a formato decimal.
-- **Decimal a DMS:** Convierte coordenadas en formato decimal a DMS.
-""")
-
-# --- Opciones de conversión ---
-conversion = st.radio(
-    "¿Qué tipo de conversión deseas realizar?",
-    ('DMS a Decimal', 'Decimal a DMS')
-)
+# Selección del tipo de conversión
+conversion = st.sidebar.radio("Seleccione el tipo de conversión", ('Decimal a DMS', 'DMS a Decimal'))
 
 # Conectar a Google Sheets
 client = init_connection()
@@ -137,8 +134,9 @@ if client:
     sheet = load_sheet(client)
 
     if sheet:
-        st.markdown("### Proceso de conversión")
-        st.markdown(f"Seleccionaste: **{conversion}**")
-        
-        if st.button("Ejecutar conversión"):
-            procesar_hoja(sheet, conversion)
+        if conversion == 'DMS a Decimal':
+            if st.button("Convertir DMS a Decimal"):
+                procesar_hoja(sheet, conversion)
+        elif conversion == 'Decimal a DMS':
+            if st.button("Convertir Decimal a DMS"):
+                procesar_hoja(sheet, conversion)
