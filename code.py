@@ -28,8 +28,24 @@ def load_sheet(client):
         st.error(f"Error al cargar la planilla: {str(e)}")
         return None
 
+# Función para convertir decimal a DMS con formato fijo
+def decimal_a_dms(decimal, direccion):
+    """Convierte coordenadas decimales a formato DMS."""
+    if not decimal:
+        return ""
+
+    grados = abs(int(decimal))
+    minutos = int((abs(decimal) - grados) * 60)
+    segundos = round(((abs(decimal) - grados) * 60 - minutos) * 60, 1)
+
+    # Asegurar que los minutos y segundos siempre tengan dos dígitos
+    dms = f"{grados:02d}°{minutos:02d}'{segundos:04.1f}\"{direccion}"
+
+    return dms
+
 # Función para convertir DMS a decimal
 def dms_a_decimal(dms):
+    """Convierte coordenadas DMS a formato decimal."""
     match = re.match(r"(\d{1,3})°(\d{1,2})'([\d.]+)\"([NSWE])", str(dms))
     if not match:
         return None
@@ -41,23 +57,15 @@ def dms_a_decimal(dms):
 
     return round(decimal, 8)
 
-# Función para convertir de decimal a DMS sin espacios
-def decimal_a_dms(decimal, direccion):
-    grados = int(abs(decimal))
-    minutos = int((abs(decimal) - grados) * 60)
-    segundos = (abs(decimal) - grados - minutos / 60) * 3600
-
-    # Formatear a DMS sin espacios
-    dms = f"{grados:02d}°{minutos:02d}'{segundos:0.1f}\"{direccion}"
-    return dms
-
-# Función para procesar la hoja y realizar la conversión
-def procesar_hoja(sheet, conversion):
+# Función para procesar y actualizar las celdas de Google Sheets
+def procesar_hoja(sheet):
+    """Procesa las celdas de Google Sheets y convierte coordenadas."""
+    # Obtener los datos de la hoja
     datos = sheet.get_all_values()
     header = datos[0]
     data = datos[1:]
 
-    # Obtener índices de las columnas necesarias
+    # Obtener los índices de las columnas necesarias
     col_m = header.index("Ubicación sonda google maps")
     col_n = header.index("Latitud sonda")
     col_o = header.index("longitud Sonda")
@@ -71,64 +79,48 @@ def procesar_hoja(sheet, conversion):
         lat_decimal = fila[col_n].strip() if col_n < len(fila) else ""
         lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
 
-        # Validación para evitar convertir valores no numéricos o vacíos
-        try:
-            if lat_decimal:
-                lat_decimal = float(lat_decimal.replace(",", "."))
-            else:
-                lat_decimal = None
+        # Ignorar valores vacíos o inválidos
+        if not dms_sonda and not lat_decimal and not lon_decimal:
+            continue
 
-            if lon_decimal:
-                lon_decimal = float(lon_decimal.replace(",", "."))
-            else:
-                lon_decimal = None
-        except ValueError:
-            lat_decimal = None
-            lon_decimal = None
+        # Convertir de DMS a Decimal si la celda de DMS está llena
+        if dms_sonda:
+            lat_decimal = dms_a_decimal(dms_sonda.split(" ")[0])  # Latitud
+            lon_decimal = dms_a_decimal(dms_sonda.split(" ")[1])  # Longitud
 
-        # Si la conversión es de DMS a Decimal
-        if conversion == "DMS a Decimal":
-            if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
-                lat_decimal = dms_a_decimal(dms_sonda)
-                lon_decimal = lat_decimal  # Ya que tenemos un solo valor decimal por DMS
+        # Convertir de Decimal a DMS si las celdas de latitud y longitud están llenas
+        if lat_decimal and lon_decimal:
+            lat_dms = decimal_a_dms(float(lat_decimal), "S" if float(lat_decimal) < 0 else "N")
+            lon_dms = decimal_a_dms(float(lon_decimal), "W" if float(lon_decimal) < 0 else "E")
 
-            # Agregar las actualizaciones a la lista
+            # Actualizar la hoja con los nuevos valores de DMS
+            updates.append({"range": f"M{i}", "values": [[f"{lat_dms} {lon_dms}"]]})  # Ubicación formateada
             updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
             updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
-
-        # Si la conversión es de Decimal a DMS
-        elif conversion == "Decimal a DMS":
-            if lat_decimal is not None and lon_decimal is not None:
-                lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
-                lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
-                dms_sonda = f"{lat_dms} {lon_dms}"
-
-                # Agregar las actualizaciones a la lista para reemplazar los valores en DMS
-                updates.append({"range": f"M{i}", "values": [[dms_sonda]]})  # Ubicación formateada
 
     # Aplicar batch update
     if updates:
         sheet.batch_update(updates)
-        st.success("✅ Conversión completada y planilla actualizada.")
-    else:
-        st.warning("⚠️ No se encontraron datos válidos para actualizar.")
 
 # --- Interfaz de Streamlit ---
-st.title('Conversión de Coordenadas')
-st.sidebar.header('Opciones')
-
-# Selección del tipo de conversión
-conversion = st.sidebar.radio("Seleccione el tipo de conversión", ('Decimal a DMS', 'DMS a Decimal'))
-
-# Conectar a Google Sheets
-client = init_connection()
-if client:
+def main():
+    # Conectar con Google Sheets
+    client = init_connection()
+    if not client:
+        return
     sheet = load_sheet(client)
+    if not sheet:
+        return
 
-    if sheet:
-        if conversion == 'DMS a Decimal':
-            if st.button("Convertir DMS a Decimal"):
-                procesar_hoja(sheet, conversion)
-        elif conversion == 'Decimal a DMS':
-            if st.button("Convertir Decimal a DMS"):
-                procesar_hoja(sheet, conversion)
+    # Botón para convertir DMS a decimal
+    if st.button("Convertir DMS a Decimal"):
+        procesar_hoja(sheet)
+        st.success("Coordenadas convertidas de DMS a decimal y actualizadas.")
+
+    # Botón para convertir Decimal a DMS
+    if st.button("Convertir Decimal a DMS"):
+        procesar_hoja(sheet)
+        st.success("Coordenadas convertidas de decimal a DMS y actualizadas.")
+
+if __name__ == "__main__":
+    main()
