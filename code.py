@@ -3,7 +3,7 @@ import gspread
 from google.oauth2 import service_account
 import re
 
-# --- 1. Funciones de Conexión y Carga de Datos ---
+# --- 1. Conexión y carga de datos ---
 def init_connection():
     """Inicializa la conexión con Google Sheets."""
     try:
@@ -28,11 +28,27 @@ def load_sheet(client):
         st.error(f"Error al cargar la planilla: {str(e)}")
         return None
 
-# --- 2. Función para formatear las coordenadas ---
+# --- 2. Función para aplicar formato a las celdas (M, N, O) ---
+def apply_format(sheet):
+    cell_format = {
+        "backgroundColor": {"red": 1, "green": 1, "blue": 1},  # Sin relleno (fondo blanco)
+        "horizontalAlignment": "CENTER",
+        "textFormat": {
+            "foregroundColor": {"red": 0, "green": 0, "blue": 0},  # Texto en negro
+            "fontFamily": "Arial",
+            "fontSize": 11
+        }
+    }
+    # Aplica el formato a las filas a partir de la 2 (sin tocar el encabezado)
+    sheet.format("M2:O", cell_format)
+
+# --- 3. Función para formatear la cadena DMS ---
 def format_dms(value):
     """
     Toma una cadena con coordenadas y la formatea al siguiente formato:
     34°04'50.1"S 70°39'15.1"W
+    Se espera que la entrada contenga (con o sin espacios) los componentes:
+      grados, minutos, segundos (con un decimal) y la dirección.
     """
     pattern = r'(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([NS])\s+(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([EW])'
     m = re.match(pattern, value.strip())
@@ -47,61 +63,156 @@ def format_dms(value):
             lon_sec = float(lon_sec)
         except ValueError:
             return None
-
-        # Formateamos:
-        # - Grados y minutos con dos dígitos.
-        # - Segundos con un decimal.
-        formatted_lat = f"{lat_deg:02d}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir}"
-        formatted_lon = f"{lon_deg:02d}°{lon_min:02d}'{lon_sec:04.1f}\"{lon_dir}"
+        # Se formatea:
+        # - Grados y minutos con 2 dígitos
+        # - Segundos con 1 decimal
+        formatted_lat = f"{lat_deg:02d}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir.upper()}"
+        formatted_lon = f"{lon_deg:02d}°{lon_min:02d}'{lon_sec:04.1f}\"{lon_dir.upper()}"
         return f"{formatted_lat} {formatted_lon}"
     return None
 
-# --- 3. Función para actualizar formato y coordenadas en Google Sheets ---
-def update_coordinates(sheet):
+# --- 4. Función para actualizar el contenido de la columna DMS ---
+def update_dms_format_column(sheet):
+    """
+    Actualiza (estandariza) el contenido de la columna "Ubicación sonda google maps" (M)
+    usando la función format_dms, sin modificar el encabezado.
+    """
+    dms_values = sheet.col_values(13)  # Columna M
+    if len(dms_values) <= 1:
+        return
+    start_row = 2
+    end_row = len(dms_values)
+    cell_range = f"M{start_row}:M{end_row}"
+    cells = sheet.range(cell_range)
+    for i, cell in enumerate(cells):
+        original_value = dms_values[i + 1]  # omite encabezado
+        if original_value:
+            new_val = format_dms(original_value)
+            cell.value = new_val if new_val else original_value
+        else:
+            cell.value = ""
+    sheet.update_cells(cells)
+
+# --- 5. Funciones de conversión ---
+
+def dms_to_decimal(dms_str):
+    """
+    Convierte una cadena DMS en el formato:
+      34°04'50.1"S 70°39'15.1"W
+    a un par de números decimales (latitud, longitud).
+    """
+    pattern = r'(\d{2})[°º](\d{2})[\'’](\d{1,2}\.\d)"([NS])\s+(\d{2})[°º](\d{2})[\'’](\d{1,2}\.\d)"([EW])'
+    m = re.match(pattern, dms_str.strip())
+    if m:
+        lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m.groups()
+        lat = int(lat_deg) + int(lat_min) / 60 + float(lat_sec) / 3600
+        lon = int(lon_deg) + int(lon_min) / 60 + float(lon_sec) / 3600
+        if lat_dir.upper() == "S":
+            lat = -lat
+        if lon_dir.upper() == "W":
+            lon = -lon
+        return lat, lon
+    return None
+
+def decimal_to_dms(lat, lon):
+    """
+    Convierte dos números decimales (latitud y longitud) en una cadena DMS en el formato:
+      34°04'50.1"S 70°39'15.1"W
+    """
+    # Latitud
+    lat_dir = "N" if lat >= 0 else "S"
+    abs_lat = abs(lat)
+    lat_deg = int(abs_lat)
+    lat_min = int((abs_lat - lat_deg) * 60)
+    lat_sec = (abs_lat - lat_deg - lat_min / 60) * 3600
+    # Longitud
+    lon_dir = "E" if lon >= 0 else "W"
+    abs_lon = abs(lon)
+    lon_deg = int(abs_lon)
+    lon_min = int((abs_lon - lon_deg) * 60)
+    lon_sec = (abs_lon - lon_deg - lon_min / 60) * 3600
+
+    dms_lat = f"{lat_deg:02d}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir}"
+    dms_lon = f"{lon_deg:02d}°{lon_min:02d}'{lon_sec:04.1f}\"{lon_dir}"
+    return f"{dms_lat} {dms_lon}"
+
+# --- 6. Funciones que actualizan la hoja de cálculo ---
+
+def update_decimal_from_dms(sheet):
+    """
+    Antes de convertir, actualiza el formato de la columna DMS.
+    Luego, lee la columna "Ubicación sonda google maps" (M) en formato DMS,
+    la convierte a decimal y actualiza "Latitud sonda" (N) y "longitud Sonda" (O).
+    """
     try:
-        # 1. Actualizar el formato de las columnas M, N y O (a partir de la fila 2, sin modificar el encabezado)
-        cell_format = {
-            "backgroundColor": {"red": 1, "green": 1, "blue": 1},  # Sin relleno (fondo blanco)
-            "horizontalAlignment": "CENTER",
-            "textFormat": {
-                "foregroundColor": {"red": 0, "green": 0, "blue": 0},  # Texto en negro
-                "fontFamily": "Arial",
-                "fontSize": 11,
-            },
-        }
-        # Aplica el formato desde la fila 2 hasta el final de las columnas M, N y O
-        sheet.format("M2:O", cell_format)
-
-        # 2. Leer los valores actuales de la columna M (suponiendo que allí están las coordenadas originales)
-        coords = sheet.col_values(13)  # La columna M es la número 13
-        if len(coords) <= 1:
-            st.warning("No se encontraron datos en la columna M (excepto el encabezado).")
+        apply_format(sheet)
+        update_dms_format_column(sheet)
+        dms_values = sheet.col_values(13)  # Columna M
+        if len(dms_values) <= 1:
+            st.warning("No se encontraron datos en 'Ubicación sonda google maps'.")
             return
-
-        # 3. Preparar el rango a actualizar (desde la fila 2 hasta donde existan datos)
-        start_row = 2
-        end_row = len(coords)
-        cell_range = f"M{start_row}:M{end_row}"
-        cells = sheet.range(cell_range)
-
-        # 4. Para cada celda, formatear el contenido y actualizarlo
-        for i, cell in enumerate(cells):
-            original_value = coords[i + 1]  # coords[0] es el encabezado
-            if original_value:
-                new_val = format_dms(original_value)
-                cell.value = new_val if new_val else original_value
+        num_rows = len(dms_values)
+        lat_cells = sheet.range(f"N2:N{num_rows}")
+        lon_cells = sheet.range(f"O2:O{num_rows}")
+        for i, dms in enumerate(dms_values[1:]):  # omitir encabezado
+            if dms:
+                result = dms_to_decimal(dms)
+                if result:
+                    lat, lon = result
+                    lat_cells[i].value = f"{lat:.6f}"
+                    lon_cells[i].value = f"{lon:.6f}"
+                else:
+                    lat_cells[i].value = ""
+                    lon_cells[i].value = ""
             else:
-                cell.value = ""
-        # Actualizar en lote las celdas
-        sheet.update_cells(cells)
-        st.success("Formato y coordenadas actualizadas correctamente.")
+                lat_cells[i].value = ""
+                lon_cells[i].value = ""
+        sheet.update_cells(lat_cells)
+        sheet.update_cells(lon_cells)
+        st.success("Conversión de DMS a decimal completada.")
     except Exception as e:
-        st.error(f"Error durante la actualización: {str(e)}")
+        st.error(f"Error en la conversión de DMS a decimal: {str(e)}")
 
-# --- 4. Interfaz de Streamlit ---
+def update_dms_from_decimal(sheet):
+    """
+    Antes de convertir, actualiza el formato de la columna DMS.
+    Luego, lee las columnas "Latitud sonda" (N) y "longitud Sonda" (O) en formato decimal,
+    las convierte a DMS y actualiza la columna "Ubicación sonda google maps" (M).
+    """
+    try:
+        apply_format(sheet)
+        update_dms_format_column(sheet)
+        lat_values = sheet.col_values(14)  # Columna N
+        lon_values = sheet.col_values(15)  # Columna O
+        if len(lat_values) <= 1 or len(lon_values) <= 1:
+            st.warning("No se encontraron datos en 'Latitud sonda' o 'longitud Sonda'.")
+            return
+        num_rows = min(len(lat_values), len(lon_values))
+        dms_cells = sheet.range(f"M2:M{num_rows}")
+        for i in range(1, num_rows):
+            lat_str = lat_values[i]
+            lon_str = lon_values[i]
+            try:
+                if lat_str and lon_str:
+                    lat = float(lat_str)
+                    lon = float(lon_str)
+                    dms = decimal_to_dms(lat, lon)
+                    dms_cells[i-1].value = dms
+                else:
+                    dms_cells[i-1].value = ""
+            except Exception:
+                dms_cells[i-1].value = ""
+        sheet.update_cells(dms_cells)
+        st.success("Conversión de decimal a DMS completada.")
+    except Exception as e:
+        st.error(f"Error en la conversión de decimal a DMS: {str(e)}")
+
+# --- 7. Interfaz de usuario en Streamlit ---
 def main():
-    st.title("Actualizar Coordenadas DMS en Google Sheets")
-    st.write("Presiona el botón para actualizar el formato de las columnas M, N y O, y para formatear las coordenadas de la columna M.")
+    st.title("Conversión de Coordenadas")
+    st.write("Utiliza los botones para convertir:")
+    st.write("1. DMS a Decimal (actualiza 'Latitud sonda' y 'longitud Sonda')")
+    st.write("2. Decimal a DMS (actualiza 'Ubicación sonda google maps')")
     
     client = init_connection()
     if not client:
@@ -110,8 +221,13 @@ def main():
     if not sheet:
         return
 
-    if st.button("Actualizar Formato y Coordenadas"):
-        update_coordinates(sheet)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Convertir DMS a Decimal"):
+            update_decimal_from_dms(sheet)
+    with col2:
+        if st.button("Convertir Decimal a DMS"):
+            update_dms_from_decimal(sheet)
 
 if __name__ == "__main__":
     main()
