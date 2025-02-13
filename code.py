@@ -28,19 +28,35 @@ def load_sheet(client):
         st.error(f"Error al cargar la planilla: {str(e)}")
         return None
 
-# --- 2. Función para aplicar formato a las celdas (M, N, O) ---
+# --- 2. Función para aplicar formato a las celdas ---
 def apply_format(sheet):
-    cell_format = {
-        "backgroundColor": {"red": 1, "green": 1, "blue": 1},  # Sin relleno (fondo blanco)
+    # Formato para columna M (texto) y para columnas N y O (números)
+    text_format = {
+        "backgroundColor": {"red": 1, "green": 1, "blue": 1},
         "horizontalAlignment": "CENTER",
         "textFormat": {
-            "foregroundColor": {"red": 0, "green": 0, "blue": 0},  # Texto en negro
+            "foregroundColor": {"red": 0, "green": 0, "blue": 0},
             "fontFamily": "Arial",
             "fontSize": 11
         }
     }
-    # Aplica el formato a las filas a partir de la 2 (sin tocar el encabezado)
-    sheet.format("M2:O", cell_format)
+    number_format = {
+        "numberFormat": {
+            "type": "NUMBER",
+            "pattern": "#,##0.00000000"
+        },
+        "backgroundColor": {"red": 1, "green": 1, "blue": 1},
+        "horizontalAlignment": "CENTER",
+        "textFormat": {
+            "foregroundColor": {"red": 0, "green": 0, "blue": 0},
+            "fontFamily": "Arial",
+            "fontSize": 11
+        }
+    }
+    # Aplica formato a la columna M (texto, DMS)
+    sheet.format("M2:M", text_format)
+    # Aplica formato a las columnas N y O (números)
+    sheet.format("N2:O", number_format)
 
 # --- 3. Función para formatear la cadena DMS ---
 def format_dms(value):
@@ -63,9 +79,6 @@ def format_dms(value):
             lon_sec = float(lon_sec)
         except ValueError:
             return None
-        # Formateo:
-        # - Grados y minutos con 2 dígitos.
-        # - Segundos con 1 decimal.
         formatted_lat = f"{lat_deg:02d}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir.upper()}"
         formatted_lon = f"{lon_deg:02d}°{lon_min:02d}'{lon_sec:04.1f}\"{lon_dir.upper()}"
         return f"{formatted_lat} {formatted_lon}"
@@ -90,7 +103,6 @@ def update_dms_format_column(sheet):
         if original_value:
             new_val = format_dms(original_value)
             cell.value = new_val if new_val is not None else original_value
-        # Si está vacío, se deja tal como está (no se modifica)
     sheet.update_cells(cells)
 
 # --- 5. Funciones de conversión ---
@@ -143,8 +155,8 @@ def update_decimal_from_dms(sheet):
     Antes de convertir, actualiza el formato de la columna DMS.
     Luego, lee la columna "Ubicación sonda google maps" (M) en formato DMS,
     la convierte a decimal y actualiza "Latitud sonda" (N) y "longitud Sonda" (O).
-    Los decimales se muestran con 8 dígitos (después de la coma).
-    Si la conversión no es válida, se ignora esa celda (se deja su valor actual).
+    Los decimales se almacenan como número con 8 dígitos de precisión.
+    Si la conversión no es válida, se ignora esa celda y se deja su valor original.
     """
     try:
         apply_format(sheet)
@@ -156,15 +168,15 @@ def update_decimal_from_dms(sheet):
         num_rows = len(dms_values)
         lat_cells = sheet.range(f"N2:N{num_rows}")
         lon_cells = sheet.range(f"O2:O{num_rows}")
-        for i, dms in enumerate(dms_values[1:]):  # omitir el encabezado
+        for i, dms in enumerate(dms_values[1:]):  # omitir encabezado
             if dms:
                 result = dms_to_decimal(dms)
                 if result is not None:
                     lat, lon = result
-                    lat_cells[i].value = f"{lat:.8f}".replace(".", ",")
-                    lon_cells[i].value = f"{lon:.8f}".replace(".", ",")
-                # Si la conversión falla, se ignora (no se modifica la celda)
-            # Si no hay valor, se ignora (se deja lo que haya)
+                    # Se asigna el valor numérico redondeado a 8 decimales
+                    lat_cells[i].value = round(lat, 8)
+                    lon_cells[i].value = round(lon, 8)
+                # Si la conversión falla, se ignora y se deja el valor actual
         sheet.update_cells(lat_cells)
         sheet.update_cells(lon_cells)
         st.success("Conversión de DMS a decimal completada.")
@@ -198,9 +210,7 @@ def update_dms_from_decimal(sheet):
                     dms = decimal_to_dms(lat, lon)
                     dms_cells[i-1].value = dms
                 except Exception:
-                    # Si la conversión falla, se ignora y se deja el valor original.
-                    pass
-            # Si no hay valor, se ignora.
+                    pass  # Se ignora la celda si la conversión falla
         sheet.update_cells(dms_cells)
         st.success("Conversión de decimal a DMS completada.")
     except Exception as e:
