@@ -194,11 +194,10 @@ def main():
     }
     </style>
     <div class="welcome-banner">
-        ¡Bienvenido a la Conversión de Coordenadas!
+        Conversión de Coordenadas: Sondas 📍
     </div>
     """, unsafe_allow_html=True)
 
-    st.title("Conversión de Coordenadas")
     st.write("Selecciona la conversión que deseas realizar:")
 
     client = init_connection()
