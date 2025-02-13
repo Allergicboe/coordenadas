@@ -47,8 +47,8 @@ def format_dms(decimal, direccion):
     if segundos_str.startswith('0'):
         segundos_str = segundos_str[1:]  # Elimina el cero inicial si existe
 
-    return f"{grados:02d}°{minutos:02d}'{segundos_str}\"{direccion}"
-
+    return f"{grados}°{minutos:02d}'{segundos_str}\"{direccion}"
+    
 def dms_a_decimal(dms):
     """
     Convierte coordenadas DMS a decimal y devuelve el formato corregido en DMS.
@@ -169,13 +169,13 @@ def procesar_hoja(sheet, conversion):
         sheet.batch_update(updates)
         st.success(f"✅ Conversión completada. Se actualizaron {len(updates)} valores.")
         if errores:
-            st.warning("⚠️ Algunas filas no pudieron ser procesadas:")
+            st.warning("⚠️ Algunas filas no pudieron ser procesadas: ")
             for error in errores:
                 st.write(error)
     else:
         st.error("❌ No se encontraron datos válidos para actualizar. Verifica el formato de las coordenadas.")
         if errores:
-            st.write("Detalles de los errores:")
+            st.write("Detalles de los errores: ")
             for error in errores:
                 st.write(error)
 
