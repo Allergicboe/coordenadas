@@ -3,7 +3,7 @@ import gspread
 from google.oauth2 import service_account
 import re
 
-# --- 1. Función para inicializar la conexión con Google Sheets ---
+# --- Funciones de Conexión y Carga de Datos ---
 def init_connection():
     """Función para inicializar la conexión con Google Sheets."""
     try:
@@ -20,7 +20,6 @@ def init_connection():
         st.error(f"Error en la conexión: {str(e)}")
         return None
 
-# --- 2. Función para cargar la hoja de trabajo ---
 def load_sheet(client):
     """Función para cargar la hoja de trabajo de Google Sheets."""
     try:
@@ -29,88 +28,104 @@ def load_sheet(client):
         st.error(f"Error al cargar la planilla: {str(e)}")
         return None
 
-# --- 3. Funciones de conversión DMS a Decimal y viceversa ---
+# Función para convertir DMS a decimal
 def dms_a_decimal(dms):
-    """Convierte coordenadas DMS a formato decimal."""
-    match = re.match(r"(\d{1,3})°(\d{1,2})'([\d.]+)\"([NSWE])", str(dms))
+    match = re.match(r"(\d{1,3})°\s*(\d{1,2})'\s*([\d,]+)\"\s*([NSWE])", str(dms))
     if not match:
         return None
 
     grados, minutos, segundos, direccion = match.groups()
-    decimal = float(grados) + float(minutos) / 60 + float(segundos) / 3600
+
+    # Convertir a decimal
+    decimal = float(grados) + float(minutos) / 60 + float(segundos.replace(",", ".")) / 3600
     if direccion in ['S', 'W']:
         decimal = -decimal
 
     return round(decimal, 8)
 
+# Función para convertir de decimal a DMS
 def decimal_a_dms(decimal, direccion):
-    """Convierte coordenadas decimales a formato DMS."""
-    grados = int(decimal)
-    minutos = int((decimal - grados) * 60)
-    segundos = round(((decimal - grados) * 60 - minutos) * 60, 4)
-    
-    return f"{grados}° {minutos}' {segundos}\" {direccion}"
+    grados = int(abs(decimal))
+    minutos = int((abs(decimal) - grados) * 60)
+    segundos = (abs(decimal) - grados - minutos / 60) * 3600
 
-# --- 4. Interfaz de usuario con Streamlit ---
-st.title("Conversión de Coordenadas entre DMS y Decimal")
+    # Formato DMS
+    dms = f"{grados}° {minutos}' {segundos:0.4f}\" {direccion}"
+    return dms
 
-# Conexión a Google Sheets
+# Interfaz de Streamlit
+st.title("Conversión de Coordenadas: DMS a Decimal y viceversa")
+
+# Cargar hoja de cálculo
 client = init_connection()
-sheet = load_sheet(client)
+if client:
+    sheet = load_sheet(client)
 
-# Mostrar mensaje si no hay hoja
-if not sheet:
-    st.stop()
+# Botones y entradas para conversión
+if sheet:
+    st.sidebar.title("Selección de Conversión")
+    option = st.sidebar.selectbox("Selecciona la conversión:", ["De DMS a Decimal", "De Decimal a DMS"])
 
-# Función para actualizar las coordenadas en Google Sheets
-def actualizar_coordenadas():
-    """Función para actualizar coordenadas en Google Sheets."""
-    try:
-        # Obtener los datos de la hoja
-        datos = sheet.get_all_values()
-        header = datos[0]
-        data = datos[1:]
+    # Cargar datos
+    datos = sheet.get_all_values()
+    header = datos[0]
+    data = datos[1:]
 
-        # Obtener los índices de las columnas relevantes
-        col_m = header.index("Ubicación sonda google maps")
-        col_n = header.index("Latitud sonda")
-        col_o = header.index("longitud Sonda")
+    # Indices de las columnas necesarias
+    col_m = header.index("Ubicación sonda google maps")
+    col_n = header.index("Latitud sonda")
+    col_o = header.index("longitud Sonda")
 
-        updates = []
+    # Listas para almacenar las actualizaciones
+    updates = []
 
-        for i, fila in enumerate(data, start=2):  # Comienza en la fila 2
+    if option == "De DMS a Decimal":
+        st.subheader("Convertir de DMS a Decimal")
+
+        # Procesar cada fila para convertir DMS a decimal
+        for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
             dms_sonda = fila[col_m].strip() if col_m < len(fila) else ""
+
+            if dms_sonda:
+                # Convertir DMS a decimal
+                lat_decimal = dms_a_decimal(dms_sonda.split(" ")[0])
+                lon_decimal = dms_a_decimal(dms_sonda.split(" ")[1])
+
+                # Verificar si se obtuvo un valor válido para la latitud y longitud
+                if lat_decimal is not None and lon_decimal is not None:
+                    updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
+                    updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+
+        # Aplicar batch update
+        if updates:
+            try:
+                sheet.batch_update(updates)
+                st.success("✅ Conversión de DMS a Decimal completada y planilla actualizada.")
+            except Exception as e:
+                st.error(f"Error al actualizar la hoja: {str(e)}")
+
+    elif option == "De Decimal a DMS":
+        st.subheader("Convertir de Decimal a DMS")
+
+        # Procesar cada fila para convertir de decimal a DMS
+        for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
             lat_decimal = fila[col_n].strip() if col_n < len(fila) else ""
             lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
 
-            # Actualizar coordenadas de DMS a Decimal
-            if dms_sonda:
-                lat_decimal = dms_a_decimal(dms_sonda)
-                lon_decimal = dms_a_decimal(dms_sonda)
-                updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
-                updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
-            elif lat_decimal and lon_decimal:
-                dms_lat = decimal_a_dms(float(lat_decimal), 'S' if float(lat_decimal) < 0 else 'N')
-                dms_lon = decimal_a_dms(float(lon_decimal), 'W' if float(lon_decimal) < 0 else 'E')
-                updates.append({"range": f"M{i}", "values": [[f"{dms_lat} {dms_lon}"]]})  # Ubicación en DMS
-        
-        # Aplicar actualización batch
+            if lat_decimal and lon_decimal:
+                # Convertir decimal a DMS
+                lat_decimal = float(lat_decimal.replace(",", "."))
+                lon_decimal = float(lon_decimal.replace(",", "."))
+                lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
+                lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
+
+                # Actualizar la ubicación sonda en formato DMS
+                updates.append({"range": f"M{i}", "values": [[f"{lat_dms} {lon_dms}"]]})  # Ubicación formateada
+
+        # Aplicar batch update
         if updates:
-            sheet.batch_update(updates)
-            st.success("¡Coordenadas actualizadas exitosamente!")
-        else:
-            st.warning("No se encontraron actualizaciones.")
-    except Exception as e:
-        st.error(f"Error al actualizar la hoja: {str(e)}")
-
-# Botones para realizar las conversiones
-st.header("Operaciones de Conversión")
-col1, col2 = st.columns(2)
-
-with col1:
-    if st.button("Convertir DMS a Decimal"):
-        actualizar_coordenadas()
-
-with col2:
-    if st.button("Convertir Decimal a DMS"):
-        actualizar_coordenadas()
+            try:
+                sheet.batch_update(updates)
+                st.success("✅ Conversión de Decimal a DMS completada y planilla actualizada.")
+            except Exception as e:
+                st.error(f"Error al actualizar la hoja: {str(e)}")
