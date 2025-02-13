@@ -89,7 +89,11 @@ def procesar_hoja(sheet):
                 lon_decimal = coordenadas[1]
 
         # Si "Latitud sonda" y "longitud Sonda" tienen valor, convertir a DMS
-        elif lat_decimal is not None and lon_decimal is not None:
+        if lat_decimal is not None and lon_decimal is not None:
+            # Asegurarnos de que lat_decimal y lon_decimal sean numéricos antes de la comparación
+            lat_decimal = float(lat_decimal)
+            lon_decimal = float(lon_decimal)
+
             lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
             lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
             dms_sonda = f"{lat_dms} {lon_dms}"
