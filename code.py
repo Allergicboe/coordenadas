@@ -181,23 +181,7 @@ def update_dms_from_decimal(sheet):
 
 # --- 7. Interfaz de usuario en Streamlit ---
 def main():
-    # Añadir banner de bienvenida
-    st.markdown("""
-    <style>
-    .welcome-banner {
-        background-color: #A3D8F4;
-        color: #0B5394;
-        padding: 20px;
-        font-size: 24px;
-        text-align: center;
-        font-weight: bold;
-    }
-    </style>
-    <div class="welcome-banner">
-        Conversión de Coordenadas: Sondas 📍
-    </div>
-    """, unsafe_allow_html=True)
-
+    st.title("Conversión de Coordenadas")
     st.write("Selecciona la conversión que deseas realizar:")
 
     client = init_connection()
