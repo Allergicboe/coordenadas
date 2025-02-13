@@ -71,6 +71,16 @@ def procesar_hoja(sheet):
         lat_decimal = fila[col_n].strip() if col_n < len(fila) else ""
         lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
 
+        # Validación para evitar convertir valores no numéricos
+        try:
+            if lat_decimal:
+                lat_decimal = float(lat_decimal.replace(",", "."))
+            if lon_decimal:
+                lon_decimal = float(lon_decimal.replace(",", "."))
+        except ValueError:
+            lat_decimal = None
+            lon_decimal = None
+
         # Si "Ubicación sonda google maps" tiene valor, convertir a decimal
         if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
             coordenadas = dms_a_decimal(dms_sonda)
@@ -79,9 +89,7 @@ def procesar_hoja(sheet):
                 lon_decimal = coordenadas[1]
 
         # Si "Latitud sonda" y "longitud Sonda" tienen valor, convertir a DMS
-        elif lat_decimal and lon_decimal:
-            lat_decimal = float(lat_decimal.replace(",", "."))
-            lon_decimal = float(lon_decimal.replace(",", "."))
+        elif lat_decimal is not None and lon_decimal is not None:
             lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
             lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
             dms_sonda = f"{lat_dms} {lon_dms}"
