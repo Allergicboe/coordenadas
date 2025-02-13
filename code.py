@@ -71,12 +71,17 @@ def procesar_hoja(sheet):
         lat_decimal = fila[col_n].strip() if col_n < len(fila) else ""
         lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
 
-        # Validación para evitar convertir valores no numéricos
+        # Validación para evitar convertir valores no numéricos o vacíos
         try:
             if lat_decimal:
                 lat_decimal = float(lat_decimal.replace(",", "."))
+            else:
+                lat_decimal = None
+
             if lon_decimal:
                 lon_decimal = float(lon_decimal.replace(",", "."))
+            else:
+                lon_decimal = None
         except ValueError:
             lat_decimal = None
             lon_decimal = None
@@ -91,8 +96,8 @@ def procesar_hoja(sheet):
         # Si "Latitud sonda" y "longitud Sonda" tienen valor, convertir a DMS
         if lat_decimal is not None and lon_decimal is not None:
             # Asegurarnos de que lat_decimal y lon_decimal sean numéricos antes de la comparación
-            lat_decimal = float(lat_decimal)
-            lon_decimal = float(lon_decimal)
+            lat_decimal = float(lat_decimal) if lat_decimal is not None else None
+            lon_decimal = float(lon_decimal) if lon_decimal is not None else None
 
             lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
             lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
