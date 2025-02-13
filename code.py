@@ -5,7 +5,7 @@ import re
 
 # --- 1. Funciones de Conexión y Carga de Datos ---
 def init_connection():
-    """Función para inicializar la conexión con Google Sheets."""
+    """Inicializa la conexión con Google Sheets."""
     try:
         credentials = service_account.Credentials.from_service_account_info(
             st.secrets["gcp_service_account"],
@@ -21,7 +21,7 @@ def init_connection():
         return None
 
 def load_sheet(client):
-    """Función para cargar la hoja de trabajo de Google Sheets."""
+    """Carga la hoja de trabajo de Google Sheets."""
     try:
         return client.open_by_url(st.secrets["spreadsheet_url"]).sheet1
     except Exception as e:
@@ -32,7 +32,6 @@ def load_sheet(client):
 def dms_a_decimal(dms):
     """
     Convierte coordenadas DMS a decimal y devuelve el formato corregido en DMS.
-    Retorna (lat_decimal, lon_decimal, dms_corregido) o (None, None, None)
     """
     match = re.match(
         r"(\d{1,3})°\s*(\d{1,2})'(\d+(?:\.\d+)?)\"?\s*([NSWE])\s+"
@@ -40,16 +39,16 @@ def dms_a_decimal(dms):
         dms
     )
     if not match:
-        return None, None, None  # Modificado para devolver tres valores None
+        return None, None, ""  # Devuelve 3 valores para evitar el error
 
-    # Extraer los valores de latitud y longitud
+    # Extraer valores
     lat_grados, lat_min, lat_seg, lat_dir, lon_grados, lon_min, lon_seg, lon_dir = match.groups()
     
     # Convertir a decimal
     lat_decimal = float(lat_grados) + float(lat_min) / 60 + float(lat_seg) / 3600
     lon_decimal = float(lon_grados) + float(lon_min) / 60 + float(lon_seg) / 3600
 
-    # Aplicar signos según la dirección
+    # Aplicar signos según dirección
     if lat_dir == "S":
         lat_decimal = -lat_decimal
     if lon_dir == "W":
@@ -109,15 +108,8 @@ def procesar_hoja(sheet, conversion):
         lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
 
         try:
-            if lat_decimal:
-                lat_decimal = float(lat_decimal.replace(",", "."))
-            else:
-                lat_decimal = None
-
-            if lon_decimal:
-                lon_decimal = float(lon_decimal.replace(",", "."))
-            else:
-                lon_decimal = None
+            lat_decimal = float(lat_decimal.replace(",", ".")) if lat_decimal else None
+            lon_decimal = float(lon_decimal.replace(",", ".")) if lon_decimal else None
         except ValueError:
             lat_decimal = None
             lon_decimal = None
@@ -125,7 +117,8 @@ def procesar_hoja(sheet, conversion):
         if conversion == "DMS a Decimal":
             if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
                 lat_decimal, lon_decimal, dms_corregido = dms_a_decimal(dms_sonda)
-                if lat_decimal is not None and lon_decimal is not None and dms_corregido is not None:
+
+                if lat_decimal is not None and lon_decimal is not None:
                     updates.append({"range": f"M{i}", "values": [[dms_corregido]]})
                     updates.append({"range": f"N{i}", "values": [[lat_decimal]]})
                     updates.append({"range": f"O{i}", "values": [[lon_decimal]]})
