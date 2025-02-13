@@ -59,9 +59,17 @@ def formatear_estilo(sheet, col_letra):
     """Aplica formato a toda la columna especificada."""
     sheet.format(f'{col_letra}2:{col_letra}', {
         "horizontalAlignment": "CENTER",
-        "textFormat": {"fontSize": 11, "fontFamily": "Arial", "bold": False},
-        "backgroundColor": {"red": 1, "green": 1, "blue": 1},  # Sin relleno
-        "textColor": {"red": 0, "green": 0, "blue": 0}  # Negro
+        "textFormat": {
+            "fontSize": 11,
+            "fontFamily": "Arial",
+            "bold": False
+        },
+        "backgroundColor": {
+            "red": 1.0, "green": 1.0, "blue": 1.0  # Sin relleno (blanco)
+        },
+        "foregroundColorStyle": {  # Color de fuente negro
+            "rgbColor": {"red": 0, "green": 0, "blue": 0}
+        }
     })
 
 def procesar_hoja(sheet, conversion):
