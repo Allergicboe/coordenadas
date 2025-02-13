@@ -143,6 +143,7 @@ def update_decimal_from_dms(sheet):
     Antes de convertir, actualiza el formato de la columna DMS.
     Luego, lee la columna "Ubicación sonda google maps" (M) en formato DMS,
     la convierte a decimal y actualiza "Latitud sonda" (N) y "longitud Sonda" (O).
+    La conversión a decimales utiliza coma como separador.
     """
     try:
         apply_format(sheet)
@@ -159,8 +160,9 @@ def update_decimal_from_dms(sheet):
                 result = dms_to_decimal(dms)
                 if result:
                     lat, lon = result
-                    lat_cells[i].value = f"{lat:.6f}"
-                    lon_cells[i].value = f"{lon:.6f}"
+                    # Formateamos con 6 decimales y reemplazamos el punto por coma
+                    lat_cells[i].value = f"{lat:.6f}".replace(".", ",")
+                    lon_cells[i].value = f"{lon:.6f}".replace(".", ",")
                 else:
                     lat_cells[i].value = ""
                     lon_cells[i].value = ""
@@ -194,8 +196,8 @@ def update_dms_from_decimal(sheet):
             lon_str = lon_values[i]
             try:
                 if lat_str and lon_str:
-                    lat = float(lat_str)
-                    lon = float(lon_str)
+                    lat = float(lat_str.replace(",", "."))
+                    lon = float(lon_str.replace(",", "."))
                     dms = decimal_to_dms(lat, lon)
                     dms_cells[i-1].value = dms
                 else:
