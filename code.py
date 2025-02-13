@@ -36,12 +36,14 @@ def dms_a_decimal(dms):
 
     grados, minutos, segundos, direccion = match.groups()
 
-    # Convertir a decimal
-    decimal = float(grados) + float(minutos) / 60 + float(segundos.replace(",", ".")) / 3600
-    if direccion in ['S', 'W']:
-        decimal = -decimal
-
-    return round(decimal, 8)
+    try:
+        # Convertir a decimal
+        decimal = float(grados) + float(minutos) / 60 + float(segundos.replace(",", ".")) / 3600
+        if direccion in ['S', 'W']:
+            decimal = -decimal
+        return round(decimal, 8)
+    except ValueError:
+        return None  # Si el valor no es válido, ignoramos este caso
 
 # Función para convertir de decimal a DMS
 def decimal_a_dms(decimal, direccion):
@@ -144,14 +146,16 @@ if sheet:
                 lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
 
                 if lat_decimal and lon_decimal:
-                    # Convertir decimal a DMS
-                    lat_decimal = float(lat_decimal.replace(",", "."))
-                    lon_decimal = float(lon_decimal.replace(",", "."))
-                    lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
-                    lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
+                    try:
+                        lat_decimal = float(lat_decimal.replace(",", "."))
+                        lon_decimal = float(lon_decimal.replace(",", "."))
+                        lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
+                        lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
 
-                    # Actualizar la ubicación sonda en formato DMS
-                    updates.append({"range": f"M{i}", "values": [[f"{lat_dms} {lon_dms}"]]})  # Ubicación formateada
+                        # Actualizar la ubicación sonda en formato DMS
+                        updates.append({"range": f"M{i}", "values": [[f"{lat_dms} {lon_dms}"]]})  # Ubicación formateada
+                    except ValueError:
+                        continue  # Si hay un error de conversión, ignoramos esa fila
 
             # Aplicar batch update
             if updates:
