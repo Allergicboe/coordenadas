@@ -3,7 +3,28 @@ import gspread
 from google.oauth2 import service_account
 import re
 
-# --- 1. Funciones de Conexión y Carga de Datos ---
+# --- 1. Interfaz de Streamlit ---
+def main():
+    """Interfaz principal de Streamlit."""
+    st.title("Conversión de Coordenadas DMS a Decimal")
+
+    # Entrada de usuario para iniciar la conversión
+    st.write("""
+    Esta aplicación convierte coordenadas DMS (grados, minutos, segundos) a formato decimal.
+    Puedes subir las coordenadas DMS a tu hoja de Google Sheets, luego presiona el botón para actualizar las celdas con las coordenadas convertidas.
+    """)
+
+    # Mostrar el estado de conexión
+    if st.button('Conectar y Convertir Coordenadas'):
+        client = init_connection()
+        if client is None:
+            return
+        sheet = load_sheet(client)
+        if sheet is None:
+            return
+        procesar_coordenadas(sheet)
+
+# --- 2. Funciones de Conexión y Carga de Datos ---
 def init_connection():
     """Función para inicializar la conexión con Google Sheets."""
     try:
@@ -28,7 +49,7 @@ def load_sheet(client):
         st.error(f"Error al cargar la planilla: {str(e)}")
         return None
 
-# --- 2. Función para Formatear y Convertir DMS a Decimal ---
+# --- 3. Funciones para Formatear y Convertir las Coordenadas ---
 def formatear_dms(dms):
     match = re.match(r"(\d{1,2})°\s*(\d{1,2})'\s*([\d.]+)\"\s*([NS])\s*(\d{1,3})°\s*(\d{1,2})'\s*([\d.]+)\"\s*([EW])", str(dms))
     if not match:
@@ -40,16 +61,19 @@ def formatear_dms(dms):
     lat_s = round(float(lat_s), 1)
     lon_s = round(float(lon_s), 1)
 
-    # Ajustar segundos a 0 si se alcanza 60.0
+    # Si al redondear, los segundos se vuelven 60.0, ajustar
     if lat_s == 60.0:
         lat_s = 0.0
         lat_m = int(lat_m) + 1
+
     if lon_s == 60.0:
         lon_s = 0.0
         lon_m = int(lon_m) + 1
 
-    # Asegurar formato de salida
+    # Asegurar formato de salida correcto
     lat = f"{int(lat_g):02d}°{int(lat_m):02d}'{lat_s:04.1f}\"{lat_dir}"
+
+    # Corregir longitud para eliminar el cero adicional en los grados
     lon = f"{int(lon_g)}°{int(lon_m):02d}'{lon_s:04.1f}\"{lon_dir}"
 
     return lat, lon
@@ -66,17 +90,10 @@ def dms_a_decimal(dms):
 
     return round(decimal, 8)
 
-# --- 3. Función Principal para Realizar la Conversión ---
-def convertir_coordenadas():
-    client = init_connection()
-    if not client:
-        return
-
-    sheet = load_sheet(client)
-    if not sheet:
-        return
-
-    # Obtener datos de la hoja
+# --- 4. Función para Procesar las Coordenadas ---
+def procesar_coordenadas(sheet):
+    """Función para procesar las coordenadas DMS y actualizar la planilla."""
+    # Obtener todos los datos
     datos = sheet.get_all_values()
     header = datos[0]
     data = datos[1:]
@@ -84,7 +101,7 @@ def convertir_coordenadas():
     # Obtener índices de las columnas necesarias
     col_m = header.index("Ubicación sonda google maps")
     col_n = header.index("Latitud sonda")
-    col_o = header.index("Longitud Sonda")
+    col_o = header.index("longitud Sonda")
 
     # Listas para almacenar los valores a actualizar
     updates = []
@@ -113,15 +130,8 @@ def convertir_coordenadas():
     # Aplicar batch update
     if updates:
         sheet.batch_update(updates)
-        st.success("✅ Conversión completada y planilla actualizada.")
-    else:
-        st.warning("No se encontraron coordenadas válidas para procesar.")
 
-# --- 4. Interfaz de Usuario en Streamlit ---
-st.title("Conversión de Coordenadas DMS a Decimal")
-st.write(
-    "Esta aplicación convierte las coordenadas en formato DMS (Grados, Minutos, Segundos) a formato Decimal en Google Sheets."
-)
+    st.success("✅ Conversión completada y planilla actualizada.")
 
-if st.button("Ejecutar Conversión"):
-    convertir_coordenadas()
+if __name__ == "__main__":
+    main()
