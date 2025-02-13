@@ -31,19 +31,24 @@ def load_sheet(client):
 # --- 2. Funciones de Conversión y Formato ---
 def format_dms(decimal, direccion):
     """
-    Formatea un valor decimal a DMS asegurando que:
+    Formatea un valor decimal a DMS asegurando:
     - Grados sin ceros a la izquierda
     - Minutos siempre con dos dígitos (00-59)
-    - Segundos siempre con dos dígitos antes del decimal y un decimal después
+    - Segundos sin ceros a la izquierda antes del decimal, un decimal después
+    Ejemplo: 34°39'08.8"S
     """
     grados = int(abs(decimal))
     minutos_temp = (abs(decimal) - grados) * 60
     minutos = int(minutos_temp)
     segundos = (minutos_temp - minutos) * 60
+    
+    # Formatea los segundos primero como string para eliminar ceros a la izquierda
+    segundos_str = f"{segundos:.1f}"
+    if segundos_str.startswith('0'):
+        segundos_str = segundos_str[1:]  # Elimina el cero inicial si existe
 
-    # Asegura dos dígitos en minutos y dos dígitos + un decimal en segundos
-    return f"{grados}°{minutos:02d}'{segundos:05.1f}\"{direccion}"
-
+    return f"{grados}°{minutos:02d}'{segundos_str}\"{direccion}"
+    
 def dms_a_decimal(dms):
     """
     Convierte coordenadas DMS a decimal y devuelve el formato corregido en DMS.
