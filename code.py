@@ -32,6 +32,7 @@ def load_sheet(client):
 def dms_a_decimal(dms):
     """
     Convierte coordenadas DMS a decimal y devuelve el formato corregido en DMS.
+    Retorna (lat_decimal, lon_decimal, dms_corregido) o (None, None, None)
     """
     match = re.match(
         r"(\d{1,3})°\s*(\d{1,2})'(\d+(?:\.\d+)?)\"?\s*([NSWE])\s+"
@@ -39,7 +40,7 @@ def dms_a_decimal(dms):
         dms
     )
     if not match:
-        return None, None  # Devuelve None si el formato es inválido
+        return None, None, None  # Modificado para devolver tres valores None
 
     # Extraer los valores de latitud y longitud
     lat_grados, lat_min, lat_seg, lat_dir, lon_grados, lon_min, lon_seg, lon_dir = match.groups()
@@ -124,10 +125,10 @@ def procesar_hoja(sheet, conversion):
         if conversion == "DMS a Decimal":
             if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
                 lat_decimal, lon_decimal, dms_corregido = dms_a_decimal(dms_sonda)
-
-                updates.append({"range": f"M{i}", "values": [[dms_corregido]]})
-                updates.append({"range": f"N{i}", "values": [[lat_decimal]]})
-                updates.append({"range": f"O{i}", "values": [[lon_decimal]]})
+                if lat_decimal is not None and lon_decimal is not None and dms_corregido is not None:
+                    updates.append({"range": f"M{i}", "values": [[dms_corregido]]})
+                    updates.append({"range": f"N{i}", "values": [[lat_decimal]]})
+                    updates.append({"range": f"O{i}", "values": [[lon_decimal]]})
 
         elif conversion == "Decimal a DMS":
             if lat_decimal is not None and lon_decimal is not None:
