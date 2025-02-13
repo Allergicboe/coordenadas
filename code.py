@@ -54,6 +54,30 @@ def decimal_a_dms(decimal, direccion):
     dms = f"{grados:02d}°{int(minutos):02d}'{segundos:04.1f}\"{direccion}"
     return dms
 
+# Función para aplicar formato a todas las celdas de una columna
+def aplicar_formato(sheet, columna):
+    """Aplicar formato de fuente Arial 11, color negro, sin relleno y centrado a toda la columna."""
+    formato = {
+        "textFormat": {
+            "fontFamily": "Arial",
+            "fontSize": 11,
+            "foregroundColor": {
+                "red": 0,
+                "green": 0,
+                "blue": 0
+            }
+        },
+        "backgroundColor": {
+            "red": 1,
+            "green": 1,
+            "blue": 1
+        },
+        "horizontalAlignment": "CENTER",
+        "verticalAlignment": "MIDDLE"
+    }
+    
+    # Aplicar formato a la columna completa (ajustamos la selección de celdas)
+    sheet.format(f"{columna}2:{columna}", formato)
 
 # Función para procesar la hoja y realizar la conversión
 def procesar_hoja(sheet, conversion):
@@ -68,6 +92,11 @@ def procesar_hoja(sheet, conversion):
 
     # Listas para almacenar los valores a actualizar
     updates = []
+
+    # Aplicar formato a todas las celdas de las columnas M, N y O
+    aplicar_formato(sheet, "M")  # Columna M (Ubicación sonda google maps)
+    aplicar_formato(sheet, "N")  # Columna N (Latitud sonda)
+    aplicar_formato(sheet, "O")  # Columna O (Longitud sonda)
 
     # Procesar cada fila
     for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
