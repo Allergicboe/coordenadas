@@ -88,17 +88,11 @@ def procesar_hoja(sheet):
 
         # Si "Ubicación sonda google maps" tiene valor, convertir a decimal
         if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
-            coordenadas = dms_a_decimal(dms_sonda)
-            if coordenadas:
-                lat_decimal = coordenadas[0]
-                lon_decimal = coordenadas[1]
+            lat_decimal = dms_a_decimal(dms_sonda)
+            lon_decimal = lat_decimal  # Ya que tenemos un solo valor decimal por DMS
 
         # Si "Latitud sonda" y "longitud Sonda" tienen valor, convertir a DMS
         if lat_decimal is not None and lon_decimal is not None:
-            # Asegurarnos de que lat_decimal y lon_decimal sean numéricos antes de la comparación
-            lat_decimal = float(lat_decimal) if lat_decimal is not None else None
-            lon_decimal = float(lon_decimal) if lon_decimal is not None else None
-
             lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
             lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
             dms_sonda = f"{lat_dms} {lon_dms}"
