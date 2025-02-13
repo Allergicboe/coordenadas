@@ -50,8 +50,35 @@ def decimal_a_dms(decimal, direccion):
     segundos = (abs(decimal) - grados - minutos / 60) * 3600
 
     # Formato DMS
-    dms = f"{grados}° {minutos}' {segundos:0.4f}\" {direccion}"
+    dms = f"{grados}° {minutos:02d}' {segundos:0.1f}\" {direccion}"
     return dms
+
+# Función para formatear coordenadas DMS
+def formatear_dms(dms):
+    match = re.match(r"(\d{1,2})°\s*(\d{1,2})'\s*([\d.,]+)\"\s*([NSWE])\s*(\d{1,3})°\s*(\d{1,2})'\s*([\d.,]+)\"\s*([NSWE])", str(dms))
+    if not match:
+        return None
+
+    lat_g, lat_m, lat_s, lat_dir, lon_g, lon_m, lon_s, lon_dir = match.groups()
+
+    # Redondear segundos a un decimal
+    lat_s = round(float(lat_s.replace(",", ".")), 1)
+    lon_s = round(float(lon_s.replace(",", ".")), 1)
+
+    # Ajustar los segundos si llegan a 60.0
+    if lat_s == 60.0:
+        lat_s = 0.0
+        lat_m = int(lat_m) + 1
+
+    if lon_s == 60.0:
+        lon_s = 0.0
+        lon_m = int(lon_m) + 1
+
+    # Formatear a DMS con un decimal
+    lat = f"{int(lat_g):02d}°{int(lat_m):02d}'{lat_s:04.1f}\"{lat_dir}"
+    lon = f"{int(lon_g)}°{int(lon_m):02d}'{lon_s:04.1f}\"{lon_dir}"
+
+    return lat, lon
 
 # Interfaz de Streamlit
 st.title("Conversión de Coordenadas: DMS a Decimal y viceversa")
@@ -79,55 +106,57 @@ if sheet:
     # Listas para almacenar las actualizaciones
     updates = []
 
+    # Botón para convertir de DMS a Decimal
     if option == "De DMS a Decimal":
         st.subheader("Convertir de DMS a Decimal")
+        if st.button("Ejecutar conversión de DMS a Decimal"):
+            # Procesar cada fila para convertir DMS a decimal
+            for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
+                dms_sonda = fila[col_m].strip() if col_m < len(fila) else ""
 
-        # Procesar cada fila para convertir DMS a decimal
-        for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
-            dms_sonda = fila[col_m].strip() if col_m < len(fila) else ""
+                if dms_sonda:
+                    # Verificar que la cadena tenga el formato esperado
+                    dms_parts = dms_sonda.split(" ")
+                    if len(dms_parts) == 2:
+                        lat_decimal = dms_a_decimal(dms_parts[0])
+                        lon_decimal = dms_a_decimal(dms_parts[1])
 
-            if dms_sonda:
-                # Verificar que la cadena tenga el formato esperado
-                dms_parts = dms_sonda.split(" ")
-                if len(dms_parts) == 2:
-                    lat_decimal = dms_a_decimal(dms_parts[0])
-                    lon_decimal = dms_a_decimal(dms_parts[1])
+                        # Ignorar las casillas inválidas
+                        if lat_decimal is not None and lon_decimal is not None:
+                            updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
+                            updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
 
-                    # Verificar si se obtuvo un valor válido para la latitud y longitud
-                    if lat_decimal is not None and lon_decimal is not None:
-                        updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
-                        updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+            # Aplicar batch update
+            if updates:
+                try:
+                    sheet.batch_update(updates)
+                    st.success("✅ Conversión de DMS a Decimal completada y planilla actualizada.")
+                except Exception as e:
+                    st.error(f"Error al actualizar la hoja: {str(e)}")
 
-        # Aplicar batch update
-        if updates:
-            try:
-                sheet.batch_update(updates)
-                st.success("✅ Conversión de DMS a Decimal completada y planilla actualizada.")
-            except Exception as e:
-                st.error(f"Error al actualizar la hoja: {str(e)}")
-
+    # Botón para convertir de Decimal a DMS
     elif option == "De Decimal a DMS":
         st.subheader("Convertir de Decimal a DMS")
+        if st.button("Ejecutar conversión de Decimal a DMS"):
+            # Procesar cada fila para convertir de decimal a DMS
+            for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
+                lat_decimal = fila[col_n].strip() if col_n < len(fila) else ""
+                lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
 
-        # Procesar cada fila para convertir de decimal a DMS
-        for i, fila in enumerate(data, start=2):  # Comienza en la fila 2 (índice 1 en listas)
-            lat_decimal = fila[col_n].strip() if col_n < len(fila) else ""
-            lon_decimal = fila[col_o].strip() if col_o < len(fila) else ""
+                if lat_decimal and lon_decimal:
+                    # Convertir decimal a DMS
+                    lat_decimal = float(lat_decimal.replace(",", "."))
+                    lon_decimal = float(lon_decimal.replace(",", "."))
+                    lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
+                    lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
 
-            if lat_decimal and lon_decimal:
-                # Convertir decimal a DMS
-                lat_decimal = float(lat_decimal.replace(",", "."))
-                lon_decimal = float(lon_decimal.replace(",", "."))
-                lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
-                lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
+                    # Actualizar la ubicación sonda en formato DMS
+                    updates.append({"range": f"M{i}", "values": [[f"{lat_dms} {lon_dms}"]]})  # Ubicación formateada
 
-                # Actualizar la ubicación sonda en formato DMS
-                updates.append({"range": f"M{i}", "values": [[f"{lat_dms} {lon_dms}"]]})  # Ubicación formateada
-
-        # Aplicar batch update
-        if updates:
-            try:
-                sheet.batch_update(updates)
-                st.success("✅ Conversión de Decimal a DMS completada y planilla actualizada.")
-            except Exception as e:
-                st.error(f"Error al actualizar la hoja: {str(e)}")
+            # Aplicar batch update
+            if updates:
+                try:
+                    sheet.batch_update(updates)
+                    st.success("✅ Conversión de Decimal a DMS completada y planilla actualizada.")
+                except Exception as e:
+                    st.error(f"Error al actualizar la hoja: {str(e)}")
