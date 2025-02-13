@@ -97,12 +97,18 @@ def procesar_hoja(sheet, conversion):
         # Si la conversión es de DMS a Decimal
         if conversion == "DMS a Decimal":
             if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
-                lat_decimal = dms_a_decimal(dms_sonda)
+                # Corregir y reemplazar DMS incorrecto
+                corrected_dms = re.sub(r"\s+", "", dms_sonda)  # Eliminar espacios extra
+                lat_decimal = dms_a_decimal(corrected_dms)
                 lon_decimal = lat_decimal  # Ya que tenemos un solo valor decimal por DMS
 
-            # Agregar las actualizaciones a la lista
-            updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
-            updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+                # Agregar las actualizaciones a la lista
+                updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
+                updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+
+                # También actualizamos la ubicación DMS corregida
+                dms_sonda_corregido = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N") + " " + decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
+                updates.append({"range": f"M{i}", "values": [[dms_sonda_corregido]]})  # Ubicación corregida
 
         # Si la conversión es de Decimal a DMS
         elif conversion == "Decimal a DMS":
