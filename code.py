@@ -299,7 +299,7 @@ def main():
             update_dms_from_decimal(sheet)
 
     st.markdown("---")
-    st.title("Conversión de Coordenadas: Campo")
+    st.title("Conversión de Coordenadas: Campo 📍")
     st.write("Selecciona la conversión que deseas realizar para Ubicación campo:")
 
     # Botones para Campo (Columnas E, F y G)
