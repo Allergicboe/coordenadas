@@ -60,7 +60,7 @@ def procesar_hoja(sheet, conversion):
     # Obtener índices de las columnas necesarias (respetando mayúsculas)
     col_m = header.index("Ubicación sonda google maps")
     col_n = header.index("Latitud sonda")
-    col_o = header.index("Longitud Sonda")
+    col_o = header.index("longitud Sonda")
 
     # Listas para almacenar los valores a actualizar
     updates = []
