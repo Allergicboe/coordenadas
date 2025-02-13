@@ -31,16 +31,27 @@ def load_sheet(client):
 def format_dms(value):
     """
     Convierte una cadena de coordenadas DMS al formato deseado.
-    Ejemplo de entrada: "12° 34' 56.7" N 123° 45' 67.8" W"
+    Ejemplo de entrada: "34° 4' 50.1" S 70° 39' 15.01" W"
+    Ejemplo de salida: "34°4'50.1"S 70°39'15,01"W"
     """
     pattern = r'(\d{2})°\s*(\d{1,2})\'\s*([\d\.]+)"\s*([NS])\s*(\d{2,3})°\s*(\d{1,2})\'\s*([\d\.]+)"\s*([EW])'
     match = re.match(pattern, value.strip())
     if match:
         lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = match.groups()
-        lat_sec = f"{float(lat_sec):04.1f}"
-        lon_sec = f"{float(lon_sec):04.1f}".replace(".", ",")
+
+        # Asegurarse de que los segundos de latitud tengan un decimal
+        lat_sec = f"{float(lat_sec):04.1f}"  # Un decimal para latitud
+        
+        # Asegurar que la longitud tenga dos decimales para los segundos
+        lon_sec = f"{float(lon_sec):05.2f}"  # Dos decimales para longitud (con coma)
+        
+        # Cambiar el punto por coma en los segundos de longitud
+        lon_sec = lon_sec.replace(".", ",")
+        
         lat_deg = lat_deg.zfill(2)
-        lon_deg = lon_deg.zfill(2)
+        lon_deg = lon_deg.zfill(3)  # Asegurar que la longitud tenga 3 dígitos
+
+        # Retornar el formato DMS con los segundos bien formateados
         return f"{lat_deg}°{lat_min}'{lat_sec}\"{lat_dir} {lon_deg}°{lon_min}'{lon_sec}\"{lon_dir}"
     return None
 
@@ -58,39 +69,16 @@ def update_coordinates(sheet):
             }
         }
         # Aplica el formato a todas las filas de M, N, O, excepto la fila 1
-        sheet.format("M2:O", cell_format)
+        sheet.format('M2:O', cell_format)
 
-        # Lee la columna M (número 13) y actualiza sus valores con el formato DMS deseado
-        coordinates = sheet.col_values(13)
-        formatted_coordinates = []
-        # Se omite el encabezado (fila 1)
-        for value in coordinates[1:]:
-            if value:
-                result = format_dms(value)
-                formatted_coordinates.append(result if result else value)
-            else:
-                formatted_coordinates.append("")
-        
-        # Prepara el rango a actualizar en la columna M (desde la fila 2 hasta la última)
-        cell_range = f"M2:M{len(formatted_coordinates)+1}"
-        cell_list = sheet.range(cell_range)
-        for i, cell in enumerate(cell_list):
-            cell.value = formatted_coordinates[i]
-        
-        # Ejecuta el batch update de la columna M
-        sheet.update_cells(cell_list)
+        # Ahora actualizamos las coordenadas con el formato DMS adecuado
+        coordinates_range = sheet.range('M2:M' + str(sheet.row_count))
+        for cell in coordinates_range:
+            if cell.value:
+                formatted_value = format_dms(cell.value)
+                if formatted_value:
+                    sheet.update_cell(cell.row, 14, formatted_value)  # Actualiza la columna N
 
-        st.success("Actualización completada: formato y coordenadas actualizadas.")
+        st.success("Las coordenadas fueron actualizadas correctamente.")
     except Exception as e:
-        st.error(f"Error durante la actualización: {str(e)}")
-
-# --- 3. Interfaz de Streamlit ---
-st.title("Actualización de Formato y Coordenadas DMS")
-
-client = init_connection()
-if client:
-    sheet = load_sheet(client)
-    if sheet:
-        # Únicamente se muestra un botón
-        if st.button("Actualizar Formato y Coordenadas"):
-            update_coordinates(sheet)
+        st.error(f"Error al actualizar las coordenadas: {str(e)}")
