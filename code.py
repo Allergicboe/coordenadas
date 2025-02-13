@@ -47,8 +47,8 @@ def format_dms(decimal, direccion):
     if segundos_str.startswith('0'):
         segundos_str = segundos_str[1:]  # Elimina el cero inicial si existe
 
-    return f"{grados}°{minutos:02d}'{segundos_str}\"{direccion}"
-    
+    return f"{grados:02d}°{minutos:02d}'{segundos_str}\"{direccion}"
+
 def dms_a_decimal(dms):
     """
     Convierte coordenadas DMS a decimal y devuelve el formato corregido en DMS.
