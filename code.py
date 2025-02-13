@@ -46,7 +46,7 @@ def dms_a_decimal(dms):
 
     return round(decimal, 8)
 
-# Función para convertir de decimal a DMS sin espacios
+# Función para convertir de decimal a DMS sin espacios y con redondeo de segundos
 def decimal_a_dms(decimal, direccion):
     grados = int(abs(decimal))
     minutos = int((abs(decimal) - grados) * 60)
