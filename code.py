@@ -30,7 +30,7 @@ def load_sheet(client):
 
 def format_dms(value):
     """
-    Convierte las coordenadas DMS al formato especificado.
+    Convierte una cadena de coordenadas DMS al formato deseado.
     Ejemplo de entrada: "12° 34' 56.7" N 123° 45' 67.8" W"
     """
     pattern = r'(\d{2})°\s*(\d{1,2})\'\s*([\d\.]+)"\s*([NS])\s*(\d{2,3})°\s*(\d{1,2})\'\s*([\d\.]+)"\s*([EW])'
@@ -44,14 +44,26 @@ def format_dms(value):
         return f"{lat_deg}°{lat_min}'{lat_sec}\"{lat_dir} {lon_deg}°{lon_min}'{lon_sec}\"{lon_dir}"
     return None
 
+# --- 2. Función para actualizar formato y coordenadas en Google Sheets ---
 def update_coordinates(sheet):
-    """Actualiza en Google Sheets las coordenadas DMS con el nuevo formato."""
     try:
-        # Se obtiene la columna M (columna 13) sin mostrarla en la interfaz
+        # Actualiza el formato de las columnas M, N y O
+        cell_format = {
+            "backgroundColor": {"red": 1, "green": 1, "blue": 1},  # Fondo blanco (sin relleno)
+            "horizontalAlignment": "CENTER",
+            "textFormat": {
+                "foregroundColor": {"red": 0, "green": 0, "blue": 0},  # Texto en negro
+                "fontFamily": "Arial",
+                "fontSize": 11
+            }
+        }
+        # Aplica el formato a todas las columnas M, N y O
+        sheet.format("M:O", cell_format)
+
+        # Lee la columna M (número 13) y actualiza sus valores con el formato DMS deseado
         coordinates = sheet.col_values(13)
         formatted_coordinates = []
-        
-        # Se ignora el encabezado
+        # Se omite el encabezado (fila 1)
         for value in coordinates[1:]:
             if value:
                 result = format_dms(value)
@@ -59,24 +71,26 @@ def update_coordinates(sheet):
             else:
                 formatted_coordinates.append("")
         
-        # Se prepara el rango a actualizar (M2:M{última fila})
-        cell_list = sheet.range(f'M2:M{len(formatted_coordinates)+1}')
+        # Prepara el rango a actualizar en la columna M (desde la fila 2 hasta la última)
+        cell_range = f"M2:M{len(formatted_coordinates)+1}"
+        cell_list = sheet.range(cell_range)
         for i, cell in enumerate(cell_list):
             cell.value = formatted_coordinates[i]
         
-        # Se realiza la actualización en lote
+        # Ejecuta el batch update de la columna M
         sheet.update_cells(cell_list)
-        st.success("Coordenadas actualizadas correctamente en Google Sheets.")
-    except Exception as e:
-        st.error(f"Error al actualizar las coordenadas: {str(e)}")
 
-# --- 2. Interfaz de Streamlit ---
-st.title("Actualización de Coordenadas DMS")
+        st.success("Actualización completada: formato y coordenadas actualizadas.")
+    except Exception as e:
+        st.error(f"Error durante la actualización: {str(e)}")
+
+# --- 3. Interfaz de Streamlit ---
+st.title("Actualización de Formato y Coordenadas DMS")
 
 client = init_connection()
 if client:
     sheet = load_sheet(client)
     if sheet:
-        # Únicamente se muestra el botón
-        if st.button("Actualizar Coordenadas DMS"):
+        # Únicamente se muestra un botón
+        if st.button("Actualizar Formato y Coordenadas"):
             update_coordinates(sheet)
