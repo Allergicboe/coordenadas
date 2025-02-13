@@ -52,7 +52,7 @@ def decimal_a_dms(decimal, direccion):
     return dms
 
 # Función para procesar la hoja y realizar la conversión
-def procesar_hoja(sheet):
+def procesar_hoja(sheet, conversion):
     datos = sheet.get_all_values()
     header = datos[0]
     data = datos[1:]
@@ -86,21 +86,25 @@ def procesar_hoja(sheet):
             lat_decimal = None
             lon_decimal = None
 
-        # Si "Ubicación sonda google maps" tiene valor, convertir a decimal
-        if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
-            lat_decimal = dms_a_decimal(dms_sonda)
-            lon_decimal = lat_decimal  # Ya que tenemos un solo valor decimal por DMS
+        # Si la conversión es de DMS a Decimal
+        if conversion == "DMS a Decimal":
+            if dms_sonda and re.search(r"\d+°\s*\d+'", dms_sonda):
+                lat_decimal = dms_a_decimal(dms_sonda)
+                lon_decimal = lat_decimal  # Ya que tenemos un solo valor decimal por DMS
 
-        # Si "Latitud sonda" y "longitud Sonda" tienen valor, convertir a DMS
-        if lat_decimal is not None and lon_decimal is not None:
-            lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
-            lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
-            dms_sonda = f"{lat_dms} {lon_dms}"
+            # Agregar las actualizaciones a la lista
+            updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
+            updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
 
-        # Agregar las actualizaciones a la lista
-        updates.append({"range": f"M{i}", "values": [[dms_sonda]]})  # Ubicación formateada
-        updates.append({"range": f"N{i}", "values": [[lat_decimal]]})  # Latitud decimal
-        updates.append({"range": f"O{i}", "values": [[lon_decimal]]})  # Longitud decimal
+        # Si la conversión es de Decimal a DMS
+        elif conversion == "Decimal a DMS":
+            if lat_decimal is not None and lon_decimal is not None:
+                lat_dms = decimal_a_dms(lat_decimal, "S" if lat_decimal < 0 else "N")
+                lon_dms = decimal_a_dms(lon_decimal, "W" if lon_decimal < 0 else "E")
+                dms_sonda = f"{lat_dms} {lon_dms}"
+
+                # Agregar las actualizaciones a la lista para reemplazar los valores en DMS
+                updates.append({"range": f"M{i}", "values": [[dms_sonda]]})  # Ubicación formateada
 
     # Aplicar batch update
     if updates:
@@ -124,7 +128,7 @@ if client:
     if sheet:
         if conversion == 'DMS a Decimal':
             if st.button("Convertir DMS a Decimal"):
-                procesar_hoja(sheet)
+                procesar_hoja(sheet, conversion)
         elif conversion == 'Decimal a DMS':
             if st.button("Convertir Decimal a DMS"):
-                procesar_hoja(sheet)
+                procesar_hoja(sheet, conversion)
