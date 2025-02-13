@@ -181,7 +181,7 @@ def update_dms_from_decimal(sheet):
 
 # --- 7. Interfaz de usuario en Streamlit ---
 def main():
-    st.title("Conversión de Coordenadas: Sondas📍")
+    st.title("Conversión de Coordenadas: Sondas y Campos📍")
 
     # Encabezado para Sonda
     st.header("Conversión de Coordenadas: Sonda")
@@ -206,6 +206,20 @@ def main():
 
     # Separador entre funcionalidades
     st.markdown("---")
+
+    # Encabezado para Campo
+    st.header("Conversión de Coordenadas: Campo")
+    st.write("Convierte las coordenadas de la ubicación del campo entre los formatos DMS y Decimal.")
+
+    # Sección de la funcionalidad Campo
+    st.subheader("Campo - DMS a Decimal")
+    col3, col4 = st.columns(2)
+    with col3:
+        if st.button("Convertir DMS a Decimal (Campo)", help="Convierte las coordenadas DMS a formato decimal para el campo", key="campo_dms_to_decimal", use_container_width=True):
+            update_decimal_from_dms(sheet)  # Llamar a la misma función para el campo
+    with col4:
+        if st.button("Convertir Decimal a DMS (Campo)", help="Convierte las coordenadas decimales a formato DMS para el campo", key="campo_decimal_to_dms", use_container_width=True):
+            update_dms_from_decimal(sheet)  # Llamar a la misma función para el campo
 
 if __name__ == "__main__":
     main()
