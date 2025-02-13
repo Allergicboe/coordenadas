@@ -48,7 +48,7 @@ def format_dms(value):
     Toma una cadena con coordenadas y la formatea al siguiente formato:
     34°04'50.1"S 70°39'15.1"W
     Se espera que la entrada contenga (con o sin espacios) los componentes:
-      grados, minutos, segundos (con un decimal) y la dirección.
+      grados, minutos, segundos (con 1 decimal) y la dirección.
     """
     pattern = r'(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([NS])\s+(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([EW])'
     m = re.match(pattern, value.strip())
@@ -63,19 +63,20 @@ def format_dms(value):
             lon_sec = float(lon_sec)
         except ValueError:
             return None
-        # Se formatea:
-        # - Grados y minutos con 2 dígitos
-        # - Segundos con 1 decimal
+        # Formateo:
+        # - Grados y minutos con 2 dígitos.
+        # - Segundos con 1 decimal.
         formatted_lat = f"{lat_deg:02d}°{lat_min:02d}'{lat_sec:04.1f}\"{lat_dir.upper()}"
         formatted_lon = f"{lon_deg:02d}°{lon_min:02d}'{lon_sec:04.1f}\"{lon_dir.upper()}"
         return f"{formatted_lat} {formatted_lon}"
     return None
 
-# --- 4. Función para actualizar el contenido de la columna DMS ---
+# --- 4. Actualizar el contenido de la columna DMS ---
 def update_dms_format_column(sheet):
     """
     Actualiza (estandariza) el contenido de la columna "Ubicación sonda google maps" (M)
     usando la función format_dms, sin modificar el encabezado.
+    Si la conversión falla, se deja el valor original.
     """
     dms_values = sheet.col_values(13)  # Columna M
     if len(dms_values) <= 1:
@@ -85,12 +86,11 @@ def update_dms_format_column(sheet):
     cell_range = f"M{start_row}:M{end_row}"
     cells = sheet.range(cell_range)
     for i, cell in enumerate(cells):
-        original_value = dms_values[i + 1]  # omite encabezado
+        original_value = dms_values[i + 1]  # omite el encabezado
         if original_value:
             new_val = format_dms(original_value)
-            cell.value = new_val if new_val else original_value
-        else:
-            cell.value = ""
+            cell.value = new_val if new_val is not None else original_value
+        # Si está vacío, se deja tal como está (no se modifica)
     sheet.update_cells(cells)
 
 # --- 5. Funciones de conversión ---
@@ -144,6 +144,7 @@ def update_decimal_from_dms(sheet):
     Luego, lee la columna "Ubicación sonda google maps" (M) en formato DMS,
     la convierte a decimal y actualiza "Latitud sonda" (N) y "longitud Sonda" (O).
     Los decimales se muestran con 8 dígitos (después de la coma).
+    Si la conversión no es válida, se ignora esa celda (se deja su valor actual).
     """
     try:
         apply_format(sheet)
@@ -155,20 +156,15 @@ def update_decimal_from_dms(sheet):
         num_rows = len(dms_values)
         lat_cells = sheet.range(f"N2:N{num_rows}")
         lon_cells = sheet.range(f"O2:O{num_rows}")
-        for i, dms in enumerate(dms_values[1:]):  # omitir encabezado
+        for i, dms in enumerate(dms_values[1:]):  # omitir el encabezado
             if dms:
                 result = dms_to_decimal(dms)
-                if result:
+                if result is not None:
                     lat, lon = result
-                    # Se formatean con 8 decimales y se reemplaza el punto por coma
                     lat_cells[i].value = f"{lat:.8f}".replace(".", ",")
                     lon_cells[i].value = f"{lon:.8f}".replace(".", ",")
-                else:
-                    lat_cells[i].value = ""
-                    lon_cells[i].value = ""
-            else:
-                lat_cells[i].value = ""
-                lon_cells[i].value = ""
+                # Si la conversión falla, se ignora (no se modifica la celda)
+            # Si no hay valor, se ignora (se deja lo que haya)
         sheet.update_cells(lat_cells)
         sheet.update_cells(lon_cells)
         st.success("Conversión de DMS a decimal completada.")
@@ -180,6 +176,7 @@ def update_dms_from_decimal(sheet):
     Antes de convertir, actualiza el formato de la columna DMS.
     Luego, lee las columnas "Latitud sonda" (N) y "longitud Sonda" (O) en formato decimal,
     las convierte a DMS y actualiza la columna "Ubicación sonda google maps" (M).
+    Si la conversión no es válida, se ignora esa celda.
     """
     try:
         apply_format(sheet)
@@ -194,16 +191,16 @@ def update_dms_from_decimal(sheet):
         for i in range(1, num_rows):
             lat_str = lat_values[i]
             lon_str = lon_values[i]
-            try:
-                if lat_str and lon_str:
+            if lat_str and lon_str:
+                try:
                     lat = float(lat_str.replace(",", "."))
                     lon = float(lon_str.replace(",", "."))
                     dms = decimal_to_dms(lat, lon)
                     dms_cells[i-1].value = dms
-                else:
-                    dms_cells[i-1].value = ""
-            except Exception:
-                dms_cells[i-1].value = ""
+                except Exception:
+                    # Si la conversión falla, se ignora y se deja el valor original.
+                    pass
+            # Si no hay valor, se ignora.
         sheet.update_cells(dms_cells)
         st.success("Conversión de decimal a DMS completada.")
     except Exception as e:
