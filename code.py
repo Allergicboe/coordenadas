@@ -181,6 +181,23 @@ def update_dms_from_decimal(sheet):
 
 # --- 7. Interfaz de usuario en Streamlit ---
 def main():
+    # Añadir banner de bienvenida
+    st.markdown("""
+    <style>
+    .welcome-banner {
+        background-color: #A3D8F4;
+        color: #0B5394;
+        padding: 20px;
+        font-size: 24px;
+        text-align: center;
+        font-weight: bold;
+    }
+    </style>
+    <div class="welcome-banner">
+        ¡Bienvenido a la Conversión de Coordenadas!
+    </div>
+    """, unsafe_allow_html=True)
+
     st.title("Conversión de Coordenadas")
     st.write("Selecciona la conversión que deseas realizar:")
 
@@ -191,13 +208,17 @@ def main():
     if not sheet:
         return
 
+    # Usar columnas para botones
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Convertir DMS a Decimal"):
+        if st.button("Convertir DMS a Decimal", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal", use_container_width=True):
             update_decimal_from_dms(sheet)
     with col2:
-        if st.button("Convertir Decimal a DMS"):
+        if st.button("Convertir Decimal a DMS", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms", use_container_width=True):
             update_dms_from_decimal(sheet)
+
+    # Separador entre botones
+    st.markdown("---")
 
 if __name__ == "__main__":
     main()
