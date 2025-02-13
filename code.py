@@ -68,7 +68,7 @@ def procesar_hoja(sheet, conversion):
     # Obtener índices de las columnas necesarias
     col_m = header.index("Ubicación sonda google maps")
     col_n = header.index("Latitud sonda")
-    col_o = header.index("longitud Sonda")
+    col_o = header.index("Longitud Sonda")
 
     # Listas para almacenar los valores a actualizar
     updates = []
@@ -123,6 +123,38 @@ def procesar_hoja(sheet, conversion):
     # Aplicar batch update
     if updates:
         sheet.batch_update(updates)
+
+        # Aplicar formato a las columnas M, N y O
+        format_updates = [
+            {
+                "range": f"M2:M{len(data)+1}",
+                "format": {
+                    "textFormat": {"fontFamily": "Arial", "fontSize": 11, "foregroundColor": {"red": 0, "green": 0, "blue": 0}},
+                    "horizontalAlignment": "CENTER",
+                    "backgroundColor": {"red": 1, "green": 1, "blue": 1}
+                }
+            },
+            {
+                "range": f"N2:N{len(data)+1}",
+                "format": {
+                    "textFormat": {"fontFamily": "Arial", "fontSize": 11, "foregroundColor": {"red": 0, "green": 0, "blue": 0}},
+                    "horizontalAlignment": "CENTER",
+                    "backgroundColor": {"red": 1, "green": 1, "blue": 1}
+                }
+            },
+            {
+                "range": f"O2:O{len(data)+1}",
+                "format": {
+                    "textFormat": {"fontFamily": "Arial", "fontSize": 11, "foregroundColor": {"red": 0, "green": 0, "blue": 0}},
+                    "horizontalAlignment": "CENTER",
+                    "backgroundColor": {"red": 1, "green": 1, "blue": 1}
+                }
+            }
+        ]
+
+        # Aplicar formato de celdas a las columnas M, N y O
+        sheet.batch_update(format_updates)
+
         st.success("✅ Conversión completada y planilla actualizada.")
     else:
         st.warning("⚠️ No se encontraron datos válidos para actualizar.")
