@@ -245,9 +245,9 @@ def update_decimal_from_dms_field(sheet):
                     lon_cells[i].value = round(lon, 8)
         sheet.update_cells(lat_cells)
         sheet.update_cells(lon_cells)
-        st.success("Conversión de DMS a decimal completada para Ubicación campo.")
+        st.success("Conversión de DMS a decimal completada.")
     except Exception as e:
-        st.error(f"Error en la conversión de DMS a decimal para Ubicación campo: {str(e)}")
+        st.error(f"Error en la conversión de DMS a decimal: {str(e)}")
 
 def update_dms_from_decimal_field(sheet):
     """Convierte decimal a DMS y actualiza la columna correspondiente para Campo."""
@@ -273,9 +273,9 @@ def update_dms_from_decimal_field(sheet):
                 except Exception:
                     pass
         sheet.update_cells(dms_cells)
-        st.success("Conversión de decimal a DMS completada para Ubicación campo.")
+        st.success("Conversión de decimal a DMS completada.")
     except Exception as e:
-        st.error(f"Error en la conversión de decimal a DMS para Ubicación campo: {str(e)}")
+        st.error(f"Error en la conversión de decimal a DMS: {str(e)}")
 
 # --- 7. Interfaz de usuario en Streamlit ---
 def main():
