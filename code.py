@@ -48,45 +48,76 @@ def dms_a_decimal(dms):
 
     return round(decimal, 8)
 
-# --- 5. Interfaz de Usuario ---
+# --- 5. Función para obtener datos de Google Sheets ---
+def obtener_datos(sheet):
+    datos = sheet.get_all_values()
+    header = datos[0]
+    data = datos[1:]
+
+    col_m = header.index("Ubicación sonda google maps")
+    col_n = header.index("Latitud sonda")
+    col_o = header.index("Longitud Sonda")
+    
+    return header, data, col_m, col_n, col_o
+
+# --- 6. Función para completar "Ubicación sonda google maps" (M) desde "Latitud sonda" (N) y "Longitud Sonda" (O) ---
+def completar_dms(header, data, col_n, col_o):
+    updates = []
+    for i, fila in enumerate(data, start=2):
+        lat_decimal = fila[col_n]
+        lon_decimal = fila[col_o]
+        
+        if lat_decimal and lon_decimal:
+            # Convertir de decimal a DMS
+            lat_dms = decimal_a_dms(float(lat_decimal), "N" if float(lat_decimal) >= 0 else "S")
+            lon_dms = decimal_a_dms(float(lon_decimal), "E" if float(lon_decimal) >= 0 else "W")
+            
+            # Preparar las actualizaciones
+            updates.append({"range": f"M{i}", "values": [[f"{lat_dms}, {lon_dms}"]]})
+    
+    return updates
+
+# --- 7. Función para completar "Latitud Sonda" (N) y "Longitud Sonda" (O) desde "Ubicación sonda google maps" (M) ---
+def completar_decimal(header, data, col_m):
+    updates = []
+    for i, fila in enumerate(data, start=2):
+        dms_sonda = fila[col_m]
+        
+        if dms_sonda:
+            # Convertir de DMS a decimal
+            coordenadas = dms_sonda.split(',')
+            if len(coordenadas) == 2:
+                lat_decimal = dms_a_decimal(coordenadas[0].strip())
+                lon_decimal = dms_a_decimal(coordenadas[1].strip())
+                
+                # Preparar las actualizaciones
+                updates.append({"range": f"N{i}", "values": [[lat_decimal]]})
+                updates.append({"range": f"O{i}", "values": [[lon_decimal]]})
+
+    return updates
+
+# --- 8. Interfaz de Usuario ---
 st.title("Conversión de Coordenadas: DMS a Decimal y Decimal a DMS")
 
-# --- 5.1. Sección DMS a Decimal ---
-st.subheader("De DMS a Decimal")
+# Conexión a Google Sheets
+client = init_connection()
+if client:
+    sheet = load_sheet(client)
+    if sheet:
+        header, data, col_m, col_n, col_o = obtener_datos(sheet)
 
-# Entrada de coordenadas DMS
-dms_input = st.text_input("Ingresa las coordenadas DMS (Ejemplo: 45° 30' 15\" N, 67° 10' 30\" W)")
+        # Sección para completar "Ubicación Sonda" (M) desde "Latitud" y "Longitud"
+        st.subheader("Convertir de Latitud y Longitud a Ubicación Sonda (M)")
+        if st.button("Convertir Latitud y Longitud a Ubicación Sonda"):
+            updates = completar_dms(header, data, col_n, col_o)
+            if updates:
+                sheet.batch_update(updates)
+                st.success("¡Ubicación Sonda completada!")
 
-if st.button("Convertir DMS a Decimal"):
-    if dms_input:
-        # Separar las coordenadas
-        lat_dms = dms_input.split(',')[0].strip()
-        lon_dms = dms_input.split(',')[1].strip()
-        
-        lat_decimal = dms_a_decimal(lat_dms)
-        lon_decimal = dms_a_decimal(lon_dms)
-
-        if lat_decimal and lon_decimal:
-            st.write(f"Latitud en Decimal: {lat_decimal}")
-            st.write(f"Longitud en Decimal: {lon_decimal}")
-        else:
-            st.error("Formato DMS no válido, intenta de nuevo.")
-    else:
-        st.error("Por favor ingresa las coordenadas DMS.")
-
-# --- 5.2. Sección Decimal a DMS ---
-st.subheader("De Decimal a DMS")
-
-# Entrada de coordenadas en formato decimal
-lat_decimal_input = st.number_input("Ingresa la latitud en formato decimal", format="%.8f")
-lon_decimal_input = st.number_input("Ingresa la longitud en formato decimal", format="%.8f")
-
-if st.button("Convertir Decimal a DMS"):
-    if lat_decimal_input and lon_decimal_input:
-        lat_dms = decimal_a_dms(lat_decimal_input, "N" if lat_decimal_input >= 0 else "S")
-        lon_dms = decimal_a_dms(lon_decimal_input, "E" if lon_decimal_input >= 0 else "W")
-        
-        st.write(f"Latitud en DMS: {lat_dms}")
-        st.write(f"Longitud en DMS: {lon_dms}")
-    else:
-        st.error("Por favor ingresa las coordenadas en formato decimal.")
+        # Sección para completar "Latitud" y "Longitud" desde "Ubicación Sonda"
+        st.subheader("Convertir de Ubicación Sonda (M) a Latitud y Longitud")
+        if st.button("Convertir Ubicación Sonda a Latitud y Longitud"):
+            updates = completar_decimal(header, data, col_m)
+            if updates:
+                sheet.batch_update(updates)
+                st.success("¡Latitud y Longitud completadas!")
