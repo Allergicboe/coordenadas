@@ -48,11 +48,11 @@ def format_dms(value):
         return f"{lat_deg}°{lat_min}'{lat_sec}\"{lat_dir} {lon_deg}°{lon_min}'{lon_sec}\"{lon_dir}"
     return None
 
-# --- 2. Función para actualizar el batch de Google Sheets ---
+# --- 2. Función para actualizar las coordenadas en Google Sheets ---
 def update_coordinates(sheet, coordinates):
-    """Función para actualizar coordenadas en Google Sheets usando un batch update."""
+    """Función para actualizar las coordenadas DMS en Google Sheets."""
     try:
-        # Crear lista para las actualizaciones
+        # Crear lista para las coordenadas formateadas
         formatted_coordinates = []
 
         for value in coordinates[1:]:  # Ignorar encabezado
@@ -66,6 +66,7 @@ def update_coordinates(sheet, coordinates):
         # Prepara las celdas para actualizar
         cell_list = sheet.range(f'M2:M{len(formatted_coordinates)+1}')  # La columna de coordenadas DMS
 
+        # Asigna los valores a las celdas
         for i, cell in enumerate(cell_list):
             cell.value = formatted_coordinates[i]
 
@@ -94,6 +95,6 @@ if client:
         st.subheader("Coordenadas DMS en la Hoja de Cálculo:")
         st.write(coordinates)
 
-        # Botón para ejecutar todo el proceso
+        # Botón para ejecutar todo el proceso con un solo clic
         if st.button("Convertir y Actualizar Coordenadas DMS"):
             update_coordinates(sheet, coordinates)
