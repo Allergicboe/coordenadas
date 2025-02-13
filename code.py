@@ -181,7 +181,7 @@ def update_dms_from_decimal(sheet):
 
 # --- 7. Interfaz de usuario en Streamlit ---
 def main():
-    st.title("Conversión de Coordenadas")
+    st.title("Conversión de Coordenadas: Sondas📍")
     st.write("Selecciona la conversión que deseas realizar:")
 
     client = init_connection()
