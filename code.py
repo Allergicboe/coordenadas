@@ -229,10 +229,10 @@ def main():
 
     col1, col2 = st.columns([2, 2])
     with col1:
-        if st.button("Convertir DMS a Decimal", key="dms_to_decimal"):
+        if st.button("Convertir de DMS a Decimal"):
             update_decimal_from_dms(sheet)
     with col2:
-        if st.button("Convertir Decimal a DMS", key="decimal_to_dms"):
+        if st.button("Convertir de Decimal a DMS"):
             update_dms_from_decimal(sheet)
 
 if __name__ == "__main__":
