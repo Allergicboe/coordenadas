@@ -200,14 +200,14 @@ def update_decimal_from_dms(sheet):
                     lon_cells[i].value = round(lon, 8)
         sheet.update_cells(lat_cells)
         sheet.update_cells(lon_cells)
-        st.success("Conversión de DMS a decimal completada. ¡Gracias por su paciencia!")
+        st.success("✅ Conversión de DMS a decimal completada.")
     except Exception as e:
         st.error(f"Error en la conversión de DMS a decimal: {str(e)}")
 
 def update_dms_from_decimal(sheet):
     """Convierte decimal a DMS y actualiza la columna correspondiente para Sondas."""
     try:
-        st.info("Iniciando la conversión de coordenadas de decimal a DMS para Sondas. Por favor espere...")
+        st.info("⌛ Iniciando la conversión de coordenadas de decimal a DMS para Sondas. Por favor espere...")
         apply_format(sheet)
         update_dms_format_column(sheet)
         lat_values = sheet.col_values(14)  # Columna N
