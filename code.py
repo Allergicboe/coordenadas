@@ -3,6 +3,13 @@ import gspread
 from google.oauth2 import service_account
 import re
 
+# Configuración de la página
+st.set_page_config(
+    page_title="Conversor de Coordenadas",
+    page_icon="📍",
+    layout="wide"
+)
+
 # --- 1. Conexión y carga de datos ---
 def init_connection():
     """Inicializa la conexión con Google Sheets."""
