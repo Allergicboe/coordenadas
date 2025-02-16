@@ -303,10 +303,10 @@ def main():
     # Botones para Sondas (Columnas M, N y O)
     col1, col2 = st.columns(2)
     with col1:
-        if st.button("Convertir DMS a Decimal (Sonda)", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal", use_container_width=True):
+        if st.button("Convertir DMS a Decimal (Sonda)", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal", use_container_width=True, type="primary"):
             update_decimal_from_dms(sheet)
     with col2:
-        if st.button("Convertir Decimal a DMS (Sonda)", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms", use_container_width=True):
+        if st.button("Convertir Decimal a DMS (Sonda)", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms", use_container_width=True, type="primary"):
             update_dms_from_decimal(sheet)
 
     st.markdown("---")
@@ -316,10 +316,10 @@ def main():
     # Botones para Campo (Columnas E, F y G)
     col3, col4 = st.columns(2)
     with col3:
-        if st.button("Convertir DMS a Decimal (Campo)", help="Convierte las coordenadas DMS a formato decimal para Ubicación campo", key="dms_to_decimal_field", use_container_width=True):
+        if st.button("Convertir DMS a Decimal (Campo)", help="Convierte las coordenadas DMS a formato decimal para Ubicación campo", key="dms_to_decimal_field", use_container_width=True, type="primary"):
             update_decimal_from_dms_field(sheet)
     with col4:
-        if st.button("Convertir Decimal a DMS (Campo)", help="Convierte las coordenadas decimales a formato DMS para Ubicación campo", key="decimal_to_dms_field", use_container_width=True):
+        if st.button("Convertir Decimal a DMS (Campo)", help="Convierte las coordenadas decimales a formato DMS para Ubicación campo", key="decimal_to_dms_field", use_container_width=True, type="primary"):
             update_dms_from_decimal_field(sheet)
 
     st.markdown("---")
