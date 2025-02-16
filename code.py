@@ -296,96 +296,96 @@ def main():
     if not sheet:
         return
 
-    # Botones para Sondas (Columnas M, N y O)
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Convertir DMS a Decimal (Sonda)", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal", use_container_width=True):
-                with st.spinner("Procesando conversión DMS a Decimal para Sondas..."):
-                    update_decimal_from_dms(sheet)
-        with col2:
-            if st.button("Convertir Decimal a DMS (Sonda)", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms", use_container_width=True):
-                with st.spinner("Procesando conversión Decimal a DMS para Sondas..."):
-                    update_dms_from_decimal(sheet)
+# Botones para Sondas (Columnas M, N y O)
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("Convertir DMS a Decimal (Sonda)", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal", use_container_width=True):
+            with st.spinner("Procesando conversión DMS a Decimal para Sondas..."):
+                update_decimal_from_dms(sheet)
+    with col2:
+        if st.button("Convertir Decimal a DMS (Sonda)", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms", use_container_width=True):
+            with st.spinner("Procesando conversión Decimal a DMS para Sondas..."):
+                update_dms_from_decimal(sheet)
+
+    st.markdown("---")
+    st.title("Conversión de Coordenadas: Campo 📍")
+    st.write("Selecciona la conversión que deseas realizar:")
+
+    # Botones para Campo (Columnas E, F y G)
+    col3, col4 = st.columns(2)
+    with col3:
+        if st.button("Convertir DMS a Decimal (Campo)", help="Convierte las coordenadas DMS a formato decimal para Ubicación campo", key="dms_to_decimal_field", use_container_width=True):
+            with st.spinner("Procesando conversión DMS a Decimal para Campo..."):
+                update_decimal_from_dms_field(sheet)
+    with col4:
+        if st.button("Convertir Decimal a DMS (Campo)", help="Convierte las coordenadas decimales a formato DMS para Ubicación campo", key="decimal_to_dms_field", use_container_width=True):
+            with st.spinner("Procesando conversión Decimal a DMS para Campo..."):
+                update_dms_from_decimal_field(sheet)
+
+    st.markdown("---")
     
-        st.markdown("---")
-        st.title("Conversión de Coordenadas: Campo 📍")
-        st.write("Selecciona la conversión que deseas realizar:")
+    # Sección de previsualización
+    st.subheader("📊 Previsualización de Datos")
     
-        # Botones para Campo (Columnas E, F y G)
-        col3, col4 = st.columns(2)
-        with col3:
-            if st.button("Convertir DMS a Decimal (Campo)", help="Convierte las coordenadas DMS a formato decimal para Ubicación campo", key="dms_to_decimal_field", use_container_width=True):
-                with st.spinner("Procesando conversión DMS a Decimal para Campo..."):
-                    update_decimal_from_dms_field(sheet)
-        with col4:
-            if st.button("Convertir Decimal a DMS (Campo)", help="Convierte las coordenadas decimales a formato DMS para Ubicación campo", key="decimal_to_dms_field", use_container_width=True):
-                with st.spinner("Procesando conversión Decimal a DMS para Campo..."):
-                    update_dms_from_decimal_field(sheet)
-    
-        st.markdown("---")
+    try:
+        # Crear tabs para separar la visualización de Sondas y Campo
+        tab1, tab2 = st.tabs(["Datos de Sondas", "Datos de Campo"])
         
-        # Sección de previsualización
-        st.subheader("📊 Previsualización de Datos")
-        
-        try:
-            # Crear tabs para separar la visualización de Sondas y Campo
-            tab1, tab2 = st.tabs(["Datos de Sondas", "Datos de Campo"])
-            
-            with tab1:
-                # Obtener datos de Sondas
-                sondas_data = {
-                    'Ubicación (DMS)': sheet.col_values(13)[1:6],  # Primeros 5 valores de la columna M
-                    'Latitud': sheet.col_values(14)[1:6],          # Primeros 5 valores de la columna N
-                    'Longitud': sheet.col_values(15)[1:6]          # Primeros 5 valores de la columna O
-                }
-                df_sondas = pd.DataFrame(sondas_data)
-                if not df_sondas.empty:
-                    st.write("Mostrando las primeras 5 filas de datos de Sondas:")
-                    st.dataframe(df_sondas, use_container_width=True)
-                else:
-                    st.info("No hay datos disponibles para mostrar en Sondas")
+        with tab1:
+            # Obtener datos de Sondas
+            sondas_data = {
+                'Ubicación (DMS)': sheet.col_values(13)[1:6],  # Primeros 5 valores de la columna M
+                'Latitud': sheet.col_values(14)[1:6],          # Primeros 5 valores de la columna N
+                'Longitud': sheet.col_values(15)[1:6]          # Primeros 5 valores de la columna O
+            }
+            df_sondas = pd.DataFrame(sondas_data)
+            if not df_sondas.empty:
+                st.write("Mostrando las primeras 5 filas de datos de Sondas:")
+                st.dataframe(df_sondas, use_container_width=True)
+            else:
+                st.info("No hay datos disponibles para mostrar en Sondas")
+
+        with tab2:
+            # Obtener datos de Campo
+            campo_data = {
+                'Ubicación (DMS)': sheet.col_values(5)[1:6],   # Primeros 5 valores de la columna E
+                'Latitud': sheet.col_values(6)[1:6],           # Primeros 5 valores de la columna F
+                'Longitud': sheet.col_values(7)[1:6]           # Primeros 5 valores de la columna G
+            }
+            df_campo = pd.DataFrame(campo_data)
+            if not df_campo.empty:
+                st.write("Mostrando las primeras 5 filas de datos de Campo:")
+                st.dataframe(df_campo, use_container_width=True)
+            else:
+                st.info("No hay datos disponibles para mostrar en Campo")
+
+    except Exception as e:
+        st.error(f"Error al cargar la previsualización: {str(e)}")
     
-            with tab2:
-                # Obtener datos de Campo
-                campo_data = {
-                    'Ubicación (DMS)': sheet.col_values(5)[1:6],   # Primeros 5 valores de la columna E
-                    'Latitud': sheet.col_values(6)[1:6],           # Primeros 5 valores de la columna F
-                    'Longitud': sheet.col_values(7)[1:6]           # Primeros 5 valores de la columna G
-                }
-                df_campo = pd.DataFrame(campo_data)
-                if not df_campo.empty:
-                    st.write("Mostrando las primeras 5 filas de datos de Campo:")
-                    st.dataframe(df_campo, use_container_width=True)
-                else:
-                    st.info("No hay datos disponibles para mostrar en Campo")
+    # Información adicional
+    st.markdown("---")
+    st.markdown("""
+    ### ℹ️ Información importante
+    - Los datos se actualizan automáticamente en la hoja de cálculo
+    - La previsualización muestra las primeras 5 filas de cada sección
+    - Formato DMS esperado: DD°MM'SS.S"N DD°MM'SS.S"E
+    - Las conversiones se realizan en tiempo real
+    - Asegúrese de que los datos estén en el formato correcto antes de convertir
+    """)
+
+    # Estado del sistema
+    st.markdown("---")
+    st.subheader("🔄 Estado del Sistema")
     
-        except Exception as e:
-            st.error(f"Error al cargar la previsualización: {str(e)}")
-        
-        # Información adicional
-        st.markdown("---")
-        st.markdown("""
-        ### ℹ️ Información importante
-        - Los datos se actualizan automáticamente en la hoja de cálculo
-        - La previsualización muestra las primeras 5 filas de cada sección
-        - Formato DMS esperado: DD°MM'SS.S"N DD°MM'SS.S"E
-        - Las conversiones se realizan en tiempo real
-        - Asegúrese de que los datos estén en el formato correcto antes de convertir
-        """)
+    # Verificar conexión y datos
+    connection_status = "✅ Conectado" if client else "❌ Desconectado"
+    sheet_status = "✅ Hoja de cálculo cargada" if sheet else "❌ Error al cargar la hoja"
     
-        # Estado del sistema
-        st.markdown("---")
-        st.subheader("🔄 Estado del Sistema")
-        
-        # Verificar conexión y datos
-        connection_status = "✅ Conectado" if client else "❌ Desconectado"
-        sheet_status = "✅ Hoja de cálculo cargada" if sheet else "❌ Error al cargar la hoja"
-        
-        status_col1, status_col2 = st.columns(2)
-        with status_col1:
-            st.info(f"Estado de conexión: {connection_status}")
-        with status_col2:
-            st.info(f"Estado de la hoja: {sheet_status}")
-    
-    if __name__ == "__main__":
-        main()
+    status_col1, status_col2 = st.columns(2)
+    with status_col1:
+        st.info(f"Estado de conexión: {connection_status}")
+    with status_col2:
+        st.info(f"Estado de la hoja: {sheet_status}")
+
+if __name__ == "__main__":
+    main()
