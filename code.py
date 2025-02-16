@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 from google.oauth2 import service_account
 import re
+import pandas as pd
 
 # Configuración de la página
 st.set_page_config(
@@ -94,7 +95,7 @@ def apply_format_field(sheet):
 # --- 3. Función para formatear la cadena DMS ---
 def format_dms(value):
     """Formatea una cadena DMS al formato correcto."""
-    pattern = r'(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([NS])\s+(\d+)[°º]\s*(\d+)[\'’]\s*([\d\.]+)"\s*([EW])'
+    pattern = r'(\d+)[°º]\s*(\d+)[\'']\s*([\d\.]+)"\s*([NS])\s+(\d+)[°º]\s*(\d+)[\'']\s*([\d\.]+)"\s*([EW])'
     m = re.match(pattern, value.strip())
     if m:
         lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m.groups()
@@ -148,7 +149,7 @@ def update_dms_format_column_field(sheet):
 # --- 5. Funciones de conversión ---
 def dms_to_decimal(dms_str):
     """Convierte DMS a decimal."""
-    pattern = r'(\d{2})[°º](\d{2})[\'’](\d{1,2}\.\d)"([NS])\s+(\d{2})[°º](\d{2})[\'’](\d{1,2}\.\d)"([EW])'
+    pattern = r'(\d{2})[°º](\d{2})[\''](\d{1,2}\.\d)"([NS])\s+(\d{2})[°º](\d{2})[\''](\d{1,2}\.\d)"([EW])'
     m = re.match(pattern, dms_str.strip())
     if m:
         lat_deg, lat_min, lat_sec, lat_dir, lon_deg, lon_min, lon_sec, lon_dir = m.groups()
@@ -284,7 +285,6 @@ def update_dms_from_decimal_field(sheet):
     except Exception as e:
         st.error(f"Error en la conversión de decimal a DMS: {str(e)}")
 
-# --- 7. Interfaz de usuario en Streamlit ---
 def main():
     st.title("Conversión de Coordenadas: Sondas📍")
     st.write("Selecciona la conversión que deseas realizar:")
@@ -297,28 +297,4 @@ def main():
         return
 
     # Botones para Sondas (Columnas M, N y O)
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("Convertir DMS a Decimal (Sonda)", help="Convierte las coordenadas DMS a formato decimal", key="dms_to_decimal", use_container_width=True):
-            update_decimal_from_dms(sheet)
-    with col2:
-        if st.button("Convertir Decimal a DMS (Sonda)", help="Convierte las coordenadas decimales a formato DMS", key="decimal_to_dms", use_container_width=True):
-            update_dms_from_decimal(sheet)
-
-    st.markdown("---")
-    st.title("Conversión de Coordenadas: Campo 📍")
-    st.write("Selecciona la conversión que deseas realizar:")
-
-    # Botones para Campo (Columnas E, F y G)
-    col3, col4 = st.columns(2)
-    with col3:
-        if st.button("Convertir DMS a Decimal (Campo)", help="Convierte las coordenadas DMS a formato decimal para Ubicación campo", key="dms_to_decimal_field", use_container_width=True):
-            update_decimal_from_dms_field(sheet)
-    with col4:
-        if st.button("Convertir Decimal a DMS (Campo)", help="Convierte las coordenadas decimales a formato DMS para Ubicación campo", key="decimal_to_dms_field", use_container_width=True):
-            update_dms_from_decimal_field(sheet)
-
-    st.markdown("---")
-
-if __name__ == "__main__":
-    main()
+    col1, col2 = st.
