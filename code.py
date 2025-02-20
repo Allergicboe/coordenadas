@@ -10,13 +10,16 @@ st.set_page_config(
     layout="wide"
 )
 
-# --- 1. Conexión y carga de datos ---
+# --- 2. Funciones de Conexión y Carga de Datos ---
 def init_connection():
-    """Inicializa la conexión con Google Sheets."""
+    """Función para inicializar la conexión con Google Sheets."""
     try:
         credentials = service_account.Credentials.from_service_account_info(
             st.secrets["gcp_service_account"],
-            scopes=["https://www.googleapis.com/auth/spreadsheets", "https://www.googleapis.com/auth/drive"],
+            scopes=[
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/drive'
+            ]
         )
         client = gspread.authorize(credentials)
         return client
@@ -25,7 +28,7 @@ def init_connection():
         return None
 
 def load_sheet(client):
-    """Carga la hoja de trabajo de Google Sheets."""
+    """Función para cargar la hoja de trabajo de Google Sheets."""
     try:
         return client.open_by_url(st.secrets["spreadsheet_url"]).sheet1
     except Exception as e:
